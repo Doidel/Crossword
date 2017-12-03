@@ -13,7 +13,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -32,6 +32,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Gurobi75.NET">
+      <HintPath>..\..\..\..\..\..\gurobi752\win64\bin\Gurobi75.NET.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -43,16 +46,22 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Crossword.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="Field.cs" />
     <Compile Include="Fields\Blocked.cs" />
     <Compile Include="Fields\Empty.cs" />
     <Compile Include="Fields\Letter.cs" />
     <Compile Include="Fields\Question.cs" />
+    <Compile Include="GRBMipSolCallback.cs" />
+    <Compile Include="GurobiSolver.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="gurobi75.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

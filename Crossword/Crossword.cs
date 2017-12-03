@@ -17,6 +17,11 @@ namespace Crossword
             ReadFromFile(path);
         }
 
+        public Crossword(Field[,] grid)
+        {
+            Grid = grid;
+        }
+
         private void ReadFromFile(string path)
         {
             var lines = File.ReadLines(path).ToArray();
@@ -38,6 +43,26 @@ namespace Crossword
                         Grid[i, j] = new Blocked();
                     }
                 }
+            }
+        }
+
+        private Dictionary<string, double> Score()
+        {
+            return new Dictionary<string, double>()
+            {
+                { "uncrossed fields",  }
+            };
+        }
+
+        public void Draw()
+        {
+            for (int y = 0; y < Grid.GetLength(0); y++)
+            {
+                for (int x = 0; x < Grid.GetLength(1); x++)
+                {
+                    Console.Write(Grid[y, x]);
+                }
+                Console.WriteLine();
             }
         }
     }

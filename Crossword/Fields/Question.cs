@@ -24,5 +24,10 @@ namespace Crossword.Fields
             RightDown,
             UpRight
         }
+
+        public override string ToString()
+        {
+            return Arrow == ArrowType.Down ? "D" : "R";
+        }
     }
 }

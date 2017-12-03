@@ -13,5 +13,10 @@ namespace Crossword.Fields
         {
             L = letter;
         }
+
+        public override string ToString()
+        {
+            return L.ToString();
+        }
     }
 }
