@@ -124,10 +124,10 @@ namespace Crossword
 
                         if (crossings[y, x] == 1)
                         {
-                            if ((Grid[y, x + 1] is Letter && crossings[y, x + 1] == 1) ||
-                                (Grid[y, x - 1] is Letter && crossings[y, x - 1] == 1) ||
-                                (Grid[y + 1, x] is Letter && crossings[y + 1, x] == 1) ||
-                                (Grid[y - 1, x] is Letter && crossings[y - 1, x] == 1))
+                            if ((x + 1 < sizeX && Grid[y, x + 1] is Letter && crossings[y, x + 1] == 1) ||
+                                (x - 1 >= 0 && Grid[y, x - 1] is Letter && crossings[y, x - 1] == 1) ||
+                                (y + 1 < sizeY && Grid[y + 1, x] is Letter && crossings[y + 1, x] == 1) ||
+                                (y - 1 >= 0 && Grid[y - 1, x] is Letter && crossings[y - 1, x] == 1))
                             {
                                 totalDeadFields++;
                             }
@@ -145,13 +145,19 @@ namespace Crossword
                 //questionsInCluster[y, x]
                 for (int i = -1; i <= 1; i++)
                 {
-                    for (int j = -1; j <= 1; j++)
+                    if (y + i >= 0 && y + i < sizeY)
                     {
-                        if (i == 0 && j == 0) continue;
-                        if (Grid[y + i, x + j] is Question && Clusters[y + i, x + j] == 0)
+                        for (int j = -1; j <= 1; j++)
                         {
-                            Clusters[y + i, x + j] = clusterID;
-                            explore(y + i, x + j);
+                            if (x + j >= 0 && x + j < sizeX)
+                            {
+                                if (i == 0 && j == 0) continue;
+                                if (Grid[y + i, x + j] is Question && Clusters[y + i, x + j] == 0)
+                                {
+                                    Clusters[y + i, x + j] = clusterID;
+                                    explore(y + i, x + j);
+                                }
+                            }
                         }
                     }
                 }
@@ -219,7 +225,7 @@ namespace Crossword
             {
                 for (int x = 0; x < Clusters.GetLength(1); x++)
                 {
-                    if (Clusters[y, x] == 0)
+                    if (Clusters[y, x] != 0)
                         Console.Write(Clusters[y, x]);
                     else
                         Console.Write(" ");

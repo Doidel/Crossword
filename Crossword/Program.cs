@@ -11,7 +11,7 @@ namespace Crossword
         static void Main(string[] args)
         {
             var cwd = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\test_cases\15x15_1.cwg");
-            new GurobiSolver(cwd);
+            new GurobiSolver2(cwd);
         }
     }
 }

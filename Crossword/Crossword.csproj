@@ -53,6 +53,7 @@
     <Compile Include="Fields\Letter.cs" />
     <Compile Include="Fields\Question.cs" />
     <Compile Include="GRBMipSolCallback.cs" />
+    <Compile Include="GurobiSolver2.cs" />
     <Compile Include="GurobiSolver.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
