@@ -8,5 +8,9 @@ namespace Crossword.Fields
 {
     public class Blocked : Field
     {
+        public override string ToString()
+        {
+            return "-";
+        }
     }
 }

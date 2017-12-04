@@ -221,6 +221,9 @@ namespace Crossword
             var amountOfQuestionsAbsInput = m.AddVar(-amountQuestions, sizeX * sizeY - amountQuestions, 0, GRB.INTEGER, "amountOfQuestionsAbsInput");
             m.AddConstr(amountOfQuestionsAbsInput == allFieldsSum - amountQuestions);
             m.AddGenConstrAbs(amountOfQuestionsRating, amountOfQuestionsAbsInput, "amountOfQuestionsAbs");
+            /*int tolerance = (int)(amountQuestions * 0.1);
+            m.AddConstr(allFieldsSum - amountQuestions >= -tolerance);
+            m.AddConstr(allFieldsSum - amountQuestions <= tolerance);*/
 
             // as many partOfAWord == 2 as possible
             var manyCrossedWords = new GRBLinExpr();
@@ -255,7 +258,9 @@ namespace Crossword
                 }
             }
 
-            m.SetObjective(amountOfQuestionsRating * (1000d / sizeX / sizeY) - manyCrossedWords - wordHistogramDifferences - clusterPenalty * 100);
+            //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
+            // clusterPenalty * 100
+            m.SetObjective(amountOfQuestionsRating * (100d / sizeX / sizeY) + clusterPenalty * 100 + wordHistogramDifferences + manyCrossedWords);
 
             m.SetCallback(new GRBMipSolCallback(fields, questionType));
 

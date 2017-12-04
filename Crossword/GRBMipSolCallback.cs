@@ -12,11 +12,16 @@ namespace Crossword
     {
         private GRBVar[,] fields;
         private GRBVar[,] questionType;
+        private bool saveBest;
 
-        public GRBMipSolCallback(GRBVar[,] fields, GRBVar[,] questionType)
+        public static Crossword Best;
+        public static double BestScore;
+
+        public GRBMipSolCallback(GRBVar[,] fields, GRBVar[,] questionType, bool saveBest = true)
         {
             this.fields = fields;
             this.questionType = questionType;
+            this.saveBest = saveBest;
         }
 
         protected override void Callback()
@@ -41,13 +46,28 @@ namespace Crossword
                         }
                         else
                         {
-                            res[y, x] = new Letter('x');
+                            res[y, x] = new Letter('.');
                         }
                     }
                 }
 
                 Crossword cw = new Crossword(res);
                 cw.Draw();
+
+                if (saveBest)
+                {
+                    var newScore = cw.Score();
+                    double newScoreTotal = 1d;
+                    foreach (var k in newScore.Keys)
+                        newScoreTotal += newScore[k];
+                    newScoreTotal /= newScore.Count;
+                    if (Best == null || BestScore < newScoreTotal)
+                    {
+                        Best = cw;
+                        BestScore = newScoreTotal;
+                        cw.Save("best15x15");
+                    }
+                }
             }
         }
     }
