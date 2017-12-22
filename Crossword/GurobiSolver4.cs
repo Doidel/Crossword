@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Crossword
 {
     /// <summary>
-    /// Introduce special question types
+    /// Introduce special question types and blocks
     /// </summary>
     public class GurobiSolver4
     {
@@ -99,58 +99,67 @@ namespace Crossword
 
                     bool noQuestionToTheRightAllowed = false;
                     bool noQuestionTowardsDownAllowed = false;
-                    if (x + 3 < sizeX)
+                    bool specialQuestionsAllowed = y == 0 || x == 0 || crossword.Grid[y - 1, x] is Blocked || crossword.Grid[y, x - 1] is Blocked;
+                    
+                    if (!specialQuestionsAllowed)
                     {
-                        // for right: if [0,0] is question, [0,1..3] must not be question or end
-                        var totalQuestionsHorizontal = fields[y, x + 1] + fields[y, x + 2] + fields[y, x + 3];
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 1], "MinWordLength3" + y + "_" + x + "_right1");
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 2], "MinWordLength3" + y + "_" + x + "_right2");
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 3], "MinWordLength3" + y + "_" + x + "_right3");
-                    }
-                    else
-                    {
-                        noQuestionToTheRightAllowed = true;
-                    }
+                        if (x + 3 < sizeX)
+                        {
+                            // for right: if [0,0] is question, [0,1..3] must not be question or end
+                            var totalQuestionsHorizontal = fields[y, x + 1] + fields[y, x + 2] + fields[y, x + 3];
+                            m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 1], "MinWordLength3" + y + "_" + x + "_right1");
+                            m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 2], "MinWordLength3" + y + "_" + x + "_right2");
+                            m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 3], "MinWordLength3" + y + "_" + x + "_right3");
+                        }
+                        else
+                        {
+                            noQuestionToTheRightAllowed = true;
+                        }
 
-                    // for down:
-                    if (y + 3 < sizeY)
-                    {
-                        var totalQuestionsVertical = fields[y + 1, x] + fields[y + 2, x] + fields[y + 3, x];
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 1, x], "MinWordLength3" + y + "_" + x + "_down1");
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 2, x], "MinWordLength3" + y + "_" + x + "_down2");
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 3, x], "MinWordLength3" + y + "_" + x + "_down3");
-                    }
-                    else
-                    {
-                        noQuestionTowardsDownAllowed = true;
-                    }
-
-                    if (noQuestionToTheRightAllowed && noQuestionTowardsDownAllowed)
-                    {
-                        m.AddConstr(fields[y, x] == 0, "NoQuestionAllowed" + y + "_" + x);
-                    }
-                    else
-                    {
-                        if (noQuestionToTheRightAllowed) m.AddConstr(questionType[y, x] == 1, "QuestionCantPointRight" + y + "_" + x);
-                        if (noQuestionTowardsDownAllowed) m.AddConstr(questionType[y, x] == 0, "QuestionCantPointDown" + y + "_" + x);
-                    }
-
-                    // max word length constraints
-                    if (x + maxWordLength + 1 < sizeX)
-                    {
-                        // for right: if [0,0] is question, [0,1..maxLength+1] must have at least another question field
-                        var allHorizontalFields = new GRBLinExpr();
-                        for (int xi = 1; xi <= maxWordLength + 1; xi++)
-                            allHorizontalFields += fields[y, x + xi];
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= allHorizontalFields, "MaxLengthHorizontal" + y + "_" + x);
-                    }
-                    if (y + maxWordLength + 1 < sizeY)
-                    {
                         // for down:
-                        var allVerticalFields = new GRBLinExpr();
-                        for (int yi = 1; yi <= maxWordLength + 1; yi++)
-                            allVerticalFields += fields[y + yi, x];
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= allVerticalFields, "MaxLengthVertical" + y + "_" + x);
+                        if (y + 3 < sizeY)
+                        {
+                            var totalQuestionsVertical = fields[y + 1, x] + fields[y + 2, x] + fields[y + 3, x];
+                            m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 1, x], "MinWordLength3" + y + "_" + x + "_down1");
+                            m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 2, x], "MinWordLength3" + y + "_" + x + "_down2");
+                            m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 3, x], "MinWordLength3" + y + "_" + x + "_down3");
+                        }
+                        else
+                        {
+                            noQuestionTowardsDownAllowed = true;
+                        }
+
+                        if (noQuestionToTheRightAllowed && noQuestionTowardsDownAllowed)
+                        {
+                            m.AddConstr(fields[y, x] == 0, "NoQuestionAllowed" + y + "_" + x);
+                        }
+                        else
+                        {
+                            if (noQuestionToTheRightAllowed) m.AddConstr(questionType[y, x] == 1, "QuestionCantPointRight" + y + "_" + x);
+                            if (noQuestionTowardsDownAllowed) m.AddConstr(questionType[y, x] == 0, "QuestionCantPointDown" + y + "_" + x);
+                        }
+
+                        // max word length constraints
+                        if (x + maxWordLength + 1 < sizeX)
+                        {
+                            // for right: if [0,0] is question, [0,1..maxLength+1] must have at least another question field
+                            var allHorizontalFields = new GRBLinExpr();
+                            for (int xi = 1; xi <= maxWordLength + 1; xi++)
+                                allHorizontalFields += fields[y, x + xi];
+                            m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= allHorizontalFields, "MaxLengthHorizontal" + y + "_" + x);
+                        }
+                        if (y + maxWordLength + 1 < sizeY)
+                        {
+                            // for down:
+                            var allVerticalFields = new GRBLinExpr();
+                            for (int yi = 1; yi <= maxWordLength + 1; yi++)
+                                allVerticalFields += fields[y + yi, x];
+                            m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= allVerticalFields, "MaxLengthVertical" + y + "_" + x);
+                        }
+                    }
+                    else
+                    {
+
                     }
                 }
             }
@@ -165,44 +174,50 @@ namespace Crossword
                     if (x == 0 && y == 0) continue;
 
                     // does this field have a question to the left?
-                    var attachedToHorizontalQuestion = new GRBLinExpr();
-                    for (int l = 0; l < maxWordLength; l++)
+                    var attachedToHorizontalQuestion = m.AddVar(0, 1, 0, GRB.BINARY, "attachedToHorizontalQuestion" + y + "_" + x);
+                    for (int len = 1; len <= maxWordLength; len++)
                     {
-                        if (x - l - 1 < 0) continue;
-                        var attachedToHorizontalQuestionSpecificLength = m.AddVar(0, 1, 0, GRB.BINARY, "varAttachedToHorizontalQuestionLength" + l + "_" + y + "_" + x);
-                        // If the first field is a question and points to the right, and no letters inbetween are questions
-                        var isQuestionAndPointsRight = fields[y, x - l - 1] + (1 - questionType[y, x - l - 1]);
-                        var allHorizontalFields = new GRBLinExpr();
-                        for (int xi = 0; xi <= l; xi++)
-                            allHorizontalFields += fields[y, x - xi];
-                        m.AddConstr(attachedToHorizontalQuestionSpecificLength >= isQuestionAndPointsRight - 1 - allHorizontalFields);
-                        m.AddConstr(attachedToHorizontalQuestionSpecificLength <= isQuestionAndPointsRight * 0.5);
-                        //m.AddConstr(attachedToHorizontalQuestionSpecificLength <= 1 - allHorizontalFields * (1d / (l + 1)));
-                        for (int xi = 0; xi <= l; xi++)
-                            m.AddConstr(attachedToHorizontalQuestionSpecificLength <= 1 - fields[y, x - xi]);
-                        attachedToHorizontalQuestion += attachedToHorizontalQuestionSpecificLength;
+                        if (x - len < 0) continue;
+                        var isQuestionAndPointsRight = fields[y, x - len] + (1 - questionType[y, x - len]);
+                        var questionsInbetween = new GRBLinExpr();
+                        for (int xi = 0; xi < len; xi++)
+                            questionsInbetween += fields[y, x - xi];
+                        m.AddConstr(attachedToHorizontalQuestion >= isQuestionAndPointsRight - 1 - questionsInbetween);
+
+                        // 0 IF first question is not pointing right OR there is no question to the left
+                        // firstQuestion ==> total fields < 2
+                        m.AddConstr(attachedToHorizontalQuestion <= questionsInbetween + (1 - fields[y, x - len]) + 1 - questionType[y, x - len]); // the first question but DOESNT look right
                     }
+                    var questionsToTheLeft = new GRBLinExpr();
+                    for (int len = 0; len <= maxWordLength; len++)
+                    {
+                        if (x - len < 0 || crossword.Grid[y, x - len] is Blocked) continue;
+                        questionsToTheLeft += fields[y, x - len];
+                    }
+                    m.AddConstr(attachedToHorizontalQuestion <= questionsToTheLeft);
+
                     // does this field have a question towards down?
-                    var attachedToVerticalQuestion = new GRBLinExpr();
-                    for (int l = 0; l < maxWordLength; l++)
+                    var attachedToVerticalQuestion = m.AddVar(0, 1, 0, GRB.BINARY, "attachedToVerticalQuestion" + y + "_" + x);
+                    for (int len = 1; len <= maxWordLength; len++)
                     {
-                        if (y - l - 1 < 0) continue;
-                        var attachedToVerticalQuestionSpecificLength = m.AddVar(0, 1, 0, GRB.BINARY, "varAttachedToVerticalQuestionLength" + l + "_" + y + "_" + x);
-                        // If the first field is a question and points to the right, and no letters inbetween are questions
-                        var isQuestionAndPointsDown = fields[y - l - 1, x] + questionType[y - l - 1, x];
-                        var allVerticalFields = new GRBLinExpr();
-                        for (int yi = 0; yi <= l; yi++)
-                            allVerticalFields += fields[y - yi, x];
-                        m.AddConstr(attachedToVerticalQuestionSpecificLength >= isQuestionAndPointsDown - 1 - allVerticalFields);
-                        m.AddConstr(attachedToVerticalQuestionSpecificLength <= isQuestionAndPointsDown * 0.5);
-                        //m.AddConstr(attachedToVerticalQuestionSpecificLength <= 1 - allVerticalFields * (1d / (l + 1)));
-                        for (int yi = 0; yi <= l; yi++)
-                            m.AddConstr(attachedToVerticalQuestionSpecificLength <= 1 - fields[y - yi, x]);
-                        attachedToVerticalQuestion += attachedToVerticalQuestionSpecificLength;
+                        if (y - len < 0) continue;
+                        var isQuestionAndPointsDown = fields[y - len, x] + questionType[y - len, x];
+                        var questionsInbetween = new GRBLinExpr();
+                        for (int yi = 0; yi < len; yi++)
+                            questionsInbetween += fields[y - yi, x];
+                        m.AddConstr(attachedToVerticalQuestion >= isQuestionAndPointsDown - 1 - questionsInbetween);
+
+                        m.AddConstr(attachedToVerticalQuestion <= questionsInbetween + (1 - fields[y - len, x]) + 1 - (1 - questionType[y - len, x])); // the first question but DOESNT look down
                     }
+                    var questionsTowardsDown = new GRBLinExpr();
+                    for (int len = 0; len <= maxWordLength; len++)
+                    {
+                        if (y - len < 0 || crossword.Grid[y - len, x] is Blocked) continue;
+                        questionsTowardsDown += fields[y - len, x];
+                    }
+                    m.AddConstr(attachedToVerticalQuestion <= questionsTowardsDown);
 
                     var c = m.AddConstr(attachedToHorizontalQuestion + attachedToVerticalQuestion >= 1 - fields[y, x], "AttachedToQuestionConstraint_" + y + "_" + x);
-                    //c.Lazy = 1;
                     partOfAWord[y, x, 0] = attachedToHorizontalQuestion;
                     partOfAWord[y, x, 1] = attachedToVerticalQuestion;
                 }
@@ -217,9 +232,9 @@ namespace Crossword
 
             // Objective:
             // questions should be around ~22% (allFieldsSum ~= amountQuestions)
-            int tolerance = (int)(amountQuestions * 0.2);
-            //m.AddConstr(allFieldsSum - amountQuestions >= -tolerance, "amountOfQuestionsTolerance_1");
-            //m.AddConstr(allFieldsSum - amountQuestions <= tolerance, "amountOfQuestionsTolerance_2");
+            int tolerance = (int)(amountQuestions * 0.1);
+            m.AddConstr(allFieldsSum - amountQuestions >= -tolerance, "amountOfQuestionsTolerance_1");
+            m.AddConstr(allFieldsSum - amountQuestions <= tolerance, "amountOfQuestionsTolerance_2");
 
             // dead fields
             var uncrossedLetters = new GRBVar[sizeY, sizeX];
@@ -311,7 +326,7 @@ namespace Crossword
             // clusterPenalty * 100
             m.SetObjective(deadFieldPenalty, GRB.MINIMIZE);
 
-            m.SetCallback(new GRBMipSolCallback(fields, questionType));
+            m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType));
 
             m.Optimize();
             m.ComputeIIS();

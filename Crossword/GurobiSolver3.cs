@@ -71,11 +71,15 @@ namespace Crossword
             {
                 for (int x = 0; x < sizeX; x++)
                 {
+                    if (crossword.Grid[y, x] is Blocked)
+                        continue;
+
+
                     allFieldsSum += fields[y, x];
 
                     bool noQuestionToTheRightAllowed = false;
                     bool noQuestionTowardsDownAllowed = false;
-                    if (x + 3 < sizeX)
+                    if (x + 3 < sizeX && !crossword.HasBlock(y,x,y,x+3))
                     {
                         // for right: if [0,0] is question, [0,1..3] must not be question
                         var totalQuestionsHorizontal = fields[y, x + 1] + fields[y, x + 2] + fields[y, x + 3];
@@ -89,7 +93,7 @@ namespace Crossword
                     }
 
                     // for down:
-                    if (y + 3 < sizeY)
+                    if (y + 3 < sizeY && !crossword.HasBlock(y,x,y+3,x))
                     {
                         var totalQuestionsVertical = fields[y + 1, x] + fields[y + 2, x] + fields[y + 3, x];
                         m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 1, x], "MinWordLength3" + y + "_" + x + "_down1");
@@ -112,7 +116,7 @@ namespace Crossword
                     }
 
                     // max word length constraints
-                    if (x + maxWordLength + 1 < sizeX)
+                    if (x + maxWordLength + 1 < sizeX && !crossword.HasBlock(y,x,y,x+maxWordLength+1))
                     {
                         // for right: if [0,0] is question, [0,1..maxLength+1] must have at least another question field
                         var allHorizontalFields = new GRBLinExpr();
@@ -120,7 +124,7 @@ namespace Crossword
                             allHorizontalFields += fields[y, x + xi];
                         m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= allHorizontalFields, "MaxLengthHorizontal" + y + "_" + x);
                     }
-                    if (y + maxWordLength + 1 < sizeY)
+                    if (y + maxWordLength + 1 < sizeY && !crossword.HasBlock(y, x, y + maxWordLength + 1, x))
                     {
                         // for down:
                         var allVerticalFields = new GRBLinExpr();
@@ -138,7 +142,7 @@ namespace Crossword
                 for (int x = 0; x < sizeX; x++)
                 {
                     // this constraint doesn't work for [0,0]
-                    if (x == 0 && y == 0) continue;
+                    if ((x == 0 && y == 0) || crossword.HasBlock(y,x)) continue;
 
                     // does this field have a question to the left?
                     /*var attachedToHorizontalQuestion = new GRBLinExpr();
@@ -163,7 +167,7 @@ namespace Crossword
                     var attachedToHorizontalQuestion = m.AddVar(0, 1, 0, GRB.BINARY, "attachedToHorizontalQuestion" + y + "_" + x);
                     for (int len = 1; len <= maxWordLength; len++)
                     {
-                        if (x - len < 0) continue;
+                        if (x - len < 0 || crossword.HasBlock(y,x - len, y,x)) continue;
                         var isQuestionAndPointsRight = fields[y, x - len] + (1 - questionType[y, x - len]);
                         var questionsInbetween = new GRBLinExpr();
                         for (int xi = 0; xi < len; xi++)
@@ -175,12 +179,14 @@ namespace Crossword
                         m.AddConstr(attachedToHorizontalQuestion <= questionsInbetween + (1 - fields[y, x - len]) + 1 - questionType[y, x - len]); // the first question but DOESNT look right
                     }
                     var questionsToTheLeft = new GRBLinExpr();
+                    int qlCount = 0;
                     for (int len = 0; len <= maxWordLength; len++)
                     {
-                        if (x - len < 0 || crossword.Grid[y, x - len] is Blocked) continue;
+                        if (x - len < 0 || crossword.HasBlock(y, x - len, y, x)) continue;
                         questionsToTheLeft += fields[y, x - len];
+                        qlCount++;
                     }
-                    m.AddConstr(attachedToHorizontalQuestion <= questionsToTheLeft);
+                    if (qlCount > 0 ) m.AddConstr(attachedToHorizontalQuestion <= questionsToTheLeft);
 
                     // does this field have a question towards down?
                     /*var attachedToVerticalQuestion = new GRBLinExpr();
@@ -204,7 +210,7 @@ namespace Crossword
                     var attachedToVerticalQuestion = m.AddVar(0, 1, 0, GRB.BINARY, "attachedToVerticalQuestion" + y + "_" + x);
                     for (int len = 1; len <= maxWordLength; len++)
                     {
-                        if (y - len < 0) continue;
+                        if (y - len < 0 || crossword.HasBlock(y - len, x, y, x)) continue;
                         var isQuestionAndPointsDown = fields[y - len, x] + questionType[y - len, x];
                         var questionsInbetween = new GRBLinExpr();
                         for (int yi = 0; yi < len; yi++)
@@ -214,12 +220,14 @@ namespace Crossword
                         m.AddConstr(attachedToVerticalQuestion <= questionsInbetween + (1-fields[y - len, x]) + 1 - (1 - questionType[y - len, x])); // the first question but DOESNT look down
                     }
                     var questionsTowardsDown = new GRBLinExpr();
+                    int qdCount = 0;
                     for (int len = 0; len <= maxWordLength; len++)
                     {
-                        if (y - len < 0 || crossword.Grid[y - len, x] is Blocked) continue;
+                        if (y - len < 0 || crossword.HasBlock(y - len, x, y, x)) continue;
                         questionsTowardsDown += fields[y - len, x];
+                        qdCount++;
                     }
-                    m.AddConstr(attachedToVerticalQuestion <= questionsTowardsDown);
+                    if (qdCount > 0) m.AddConstr(attachedToVerticalQuestion <= questionsTowardsDown);
 
                     var c = m.AddConstr(attachedToHorizontalQuestion + attachedToVerticalQuestion >= 1 - fields[y, x], "AttachedToQuestionConstraint_" + y + "_" + x);
                     //c.Lazy = 1;
@@ -229,11 +237,11 @@ namespace Crossword
             }
 
             // right now, [0,0] can only be a question
-            m.AddConstr(fields[0, 0] == 1);
+            if (!crossword.HasBlock(0, 0)) m.AddConstr(fields[0, 0] == 1);
             // and similarly the bottom 3x3 can only be letters
             for (int y = sizeY - 3; y < sizeY; y++)
                 for (int x = sizeX - 3; x < sizeX; x++)
-                    m.AddConstr(fields[y, x] == 0);
+                    if (!crossword.HasBlock(y, x)) m.AddConstr(fields[y, x] == 0);
 
             // Objective:
             // questions should be around ~22% (allFieldsSum ~= amountQuestions)
@@ -242,13 +250,13 @@ namespace Crossword
             m.AddConstr(allFieldsSum - amountQuestions <= tolerance, "amountOfQuestionsTolerance_2");
 
             // dead fields
-            /*var uncrossedLetters = new GRBVar[sizeY, sizeX];
+            var uncrossedLetters = new GRBVar[sizeY, sizeX];
             var uncrossedLettersPenalty = new GRBLinExpr();
             for (int y = 0; y < sizeY; y++)
             {
                 for (int x = 0; x < sizeX; x++)
                 {
-                    if (x >= 1 || y >= 1)
+                    if ((x >= 1 || y >= 1) && !crossword.HasBlock(y, x))
                     {
                         uncrossedLetters[y, x] = m.AddVar(0, 1, 0, GRB.BINARY, "isUncrossedLetter" + y + "_" + x);
                         m.AddConstr(uncrossedLetters[y, x] <= partOfAWord[y, x, 0] + partOfAWord[y, x, 1]); // if 0 ==> 0 NECESSARY?
@@ -267,17 +275,24 @@ namespace Crossword
             {
                 for (int x = 0; x < sizeX; x++)
                 {
-                    if (x >= 1 && y >= 1)
+                    var hby = y-1 < 0 || !crossword.HasBlock(y - 1, x);
+                    var hbx = x-1 < 0 || !crossword.HasBlock(y, x - 1);
+                    if (x >= 1 && y >= 1 && !crossword.HasBlock(y,x) && (hby || hbx))
                     {
                         var isDeadArea = m.AddVar(0, 1, 0, GRB.BINARY, "isDeadArea" + y + "_" + x);
-                        m.AddConstr(isDeadArea >= uncrossedLetters[y, x] + uncrossedLetters[y - 1, x] - 1);
-                        m.AddConstr(isDeadArea >= uncrossedLetters[y, x] + uncrossedLetters[y, x - 1] - 1);
+                        if (hby) m.AddConstr(isDeadArea >= uncrossedLetters[y, x] + uncrossedLetters[y - 1, x] - 1);
+                        if (hbx) m.AddConstr(isDeadArea >= uncrossedLetters[y, x] + uncrossedLetters[y, x - 1] - 1);
                         m.AddConstr(isDeadArea <= uncrossedLetters[y, x]);
-                        m.AddConstr(isDeadArea <= uncrossedLetters[y - 1, x] + uncrossedLetters[y, x - 1]);
+                        if (hby && hbx)
+                            m.AddConstr(isDeadArea <= uncrossedLetters[y - 1, x] + uncrossedLetters[y, x - 1]);
+                        else if (hby)
+                            m.AddConstr(isDeadArea <= uncrossedLetters[y - 1, x]);
+                        else if (hbx)
+                            m.AddConstr(isDeadArea <= uncrossedLetters[y, x - 1]);
                         deadFieldPenalty += isDeadArea;
                     }
                 }
-            }*/
+            }
 
 
             // as many partOfAWord == 2 as possible
@@ -310,18 +325,24 @@ namespace Crossword
                 for (int x = 0; x < sizeX - (area - 1); x++)
                 {
                     var clusterTotal = new GRBLinExpr();
+                    int ct = 0;
                     for (int i = 0; i < area; i++)
                     {
                         for (int j = 0; j < area; j++)
                         {
+                            if (crossword.HasBlock(y + i, x + j)) continue;
                             clusterTotal += fields[y + i, x + j];
+                            ct++;
                         }
                     }
-                    var varClusterTotalPenalty = m.AddVar(0, 1, 0, GRB.BINARY, "varClusterTotalPenalty" + y + "_" + x);
-                    // 0-1 = good, 2-4 = bad
-                    m.AddConstr(varClusterTotalPenalty <= clusterTotal * 0.5, "clusterPenaltyConstr1_" + y + "_" + x);
-                    m.AddConstr(varClusterTotalPenalty >= (clusterTotal - 1) * (1d / 3), "clusterPenaltyConstr2_" + y + "_" + x);
-                    clusterPenalty += varClusterTotalPenalty;
+                    if (ct >= 3)
+                    {
+                        var varClusterTotalPenalty = m.AddVar(0, 1, 0, GRB.BINARY, "varClusterTotalPenalty" + y + "_" + x);
+                        // 0-1 = good, 2-4 = bad
+                        m.AddConstr(varClusterTotalPenalty <= clusterTotal * 0.5, "clusterPenaltyConstr1_" + y + "_" + x);
+                        m.AddConstr(varClusterTotalPenalty >= (clusterTotal - 1) * (1d / 3), "clusterPenaltyConstr2_" + y + "_" + x);
+                        clusterPenalty += varClusterTotalPenalty;
+                    }
                 }
             }
 
@@ -329,9 +350,9 @@ namespace Crossword
 
             //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
             // clusterPenalty * 100
-            m.SetObjective(clusterPenalty, GRB.MINIMIZE);
+            m.SetObjective(deadFieldPenalty + clusterPenalty, GRB.MINIMIZE);
 
-            m.SetCallback(new GRBMipSolCallback(fields, questionType));
+            m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType));
 
             m.Optimize();
             m.ComputeIIS();

@@ -47,6 +47,28 @@ namespace Crossword
             }
         }
 
+        public bool HasBlock(int y, int x, int y2 = -1, int x2 = -1)
+        {
+            if (y2 == -1) y2 = y;
+            if (x2 == -1) x2 = x;
+
+            if (y < 0 || y >= Grid.GetLength(0)) throw new ArgumentException("y out of bounds");
+            if (x < 0 || x >= Grid.GetLength(1)) throw new ArgumentException("x out of bounds");
+            if (y2 < 0 || y2 >= Grid.GetLength(0)) throw new ArgumentException("y2 out of bounds");
+            if (x2 < 0 || x2 >= Grid.GetLength(1)) throw new ArgumentException("x2 out of bounds");
+            if (x2 < x) throw new ArgumentException("x2 < x");
+            if (y2 < y) throw new ArgumentException("y2 < y");
+            
+            for (int i = y; i <= y2; i++)
+            {
+                for (int j = x; j <= x2; j++)
+                {
+                    if (Grid[i, j] is Blocked) return true;
+                }
+            }
+            return false;
+        }
+
         public Dictionary<string, double> Score()
         {
             var wordLengthHistogram = new Dictionary<int, int>() {
@@ -287,7 +309,7 @@ namespace Crossword
             Console.WriteLine("Saved as " + v);
         }
 
-        
+
         private const string clusterEncoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
         private string GetClusterCode(int i)
         {

@@ -10,7 +10,7 @@ namespace Crossword.Fields
     {
         public override string ToString()
         {
-            return "-";
+            return "#";
         }
     }
 }

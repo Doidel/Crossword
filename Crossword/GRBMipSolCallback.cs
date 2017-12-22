@@ -10,6 +10,7 @@ namespace Crossword
 {
     class GRBMipSolCallback : GRBCallback
     {
+        private Crossword inputCw;
         private GRBVar[,] fields;
         private GRBVar[,] questionType;
         private bool saveBest;
@@ -17,8 +18,9 @@ namespace Crossword
         public static Crossword[] Best = new Crossword[3];
         public static double[] BestScores = new double[3];
 
-        public GRBMipSolCallback(GRBVar[,] fields, GRBVar[,] questionType, bool saveBest = true)
+        public GRBMipSolCallback(Crossword inputCrossword, GRBVar[,] fields, GRBVar[,] questionType, bool saveBest = true)
         {
+            this.inputCw = inputCrossword;
             this.fields = fields;
             this.questionType = questionType;
             this.saveBest = saveBest;
@@ -38,15 +40,21 @@ namespace Crossword
                 {
                     for (int x = 0; x < width; x++)
                     {
-                        var letterOrQuestion = GetSolution(fields[y, x]) > 0.5 ? 1 : 0;
-                        if (letterOrQuestion == 1)
+                        if (!inputCw.HasBlock(y,x))
                         {
-                            var qType = GetSolution(questionType[y, x]) > 0.5 ? 1 : 0;
-                            res[y, x] = new Question(qType == 0 ? Question.ArrowType.Right : Question.ArrowType.Down);
-                        }
-                        else
+                            var letterOrQuestion = GetSolution(fields[y, x]) > 0.5 ? 1 : 0;
+                            if (letterOrQuestion == 1)
+                            {
+                                var qType = GetSolution(questionType[y, x]) > 0.5 ? 1 : 0;
+                                res[y, x] = new Question(qType == 0 ? Question.ArrowType.Right : Question.ArrowType.Down);
+                            }
+                            else
+                            {
+                                res[y, x] = new Letter('.');
+                            }
+                        } else
                         {
-                            res[y, x] = new Letter('.');
+                            res[y, x] = new Blocked();
                         }
                     }
                 }
