@@ -27,9 +27,16 @@ namespace Crossword
             int sizeY = crossword.Grid.GetLength(0);
             int sizeX = crossword.Grid.GetLength(1);
 
-            int amountQuestions = (int)Math.Round(0.22 * sizeX * sizeY);
 
-            double wlWeight = (sizeX * sizeY) * wordLengthHistogram.Sum(wl => wl.Key * wl.Value) / 1.8d; // TODO
+            var requiredAmountOfLetters = wordLengthHistogram.Sum(wl => wl.Key * wl.Value) / 1.8d;
+            int totalFields = sizeX * sizeY;
+            for (int y = 0; y < sizeY; y++)
+                for (int x = 0; x < sizeX; x++)
+                    totalFields -= crossword.Grid[y, x] is Blocked ? 1 : 0;
+
+            int amountQuestions = (int)Math.Round(0.22 * totalFields);
+
+            var wordLengthRatio = requiredAmountOfLetters / (totalFields - amountQuestions);
 
             GRBEnv env = new GRBEnv();
             GRBModel m = new GRBModel(env);
@@ -218,11 +225,7 @@ namespace Crossword
 
             // Objective:
             // questions should be around ~22% (allFieldsSum ~= amountQuestions)
-            /*var amountOfQuestionsRating = m.AddVar(0, sizeX * sizeY - amountQuestions, 0, GRB.INTEGER, "amountOfQuestionsRating");
-            var amountOfQuestionsAbsInput = m.AddVar(-amountQuestions, sizeX * sizeY - amountQuestions, 0, GRB.INTEGER, "amountOfQuestionsAbsInput");
-            m.AddConstr(amountOfQuestionsAbsInput == allFieldsSum - amountQuestions);
-            m.AddGenConstrAbs(amountOfQuestionsRating, amountOfQuestionsAbsInput, "amountOfQuestionsAbs");*/
-            int tolerance = (int)(amountQuestions * 0.1);
+            int tolerance = (int)(amountQuestions * 0.2);
             m.AddConstr(allFieldsSum - amountQuestions >= -tolerance);
             m.AddConstr(allFieldsSum - amountQuestions <= tolerance);
 
@@ -242,35 +245,38 @@ namespace Crossword
                 m.AddGenConstrAbs(varDiffRes, varDiffInput, "diffGenConstr" + wl);
                 wordHistogramDifferences += varDiffRes;*/
 
-                int histogramTolerance = Math.Max(1, (int)(wordLengthHistogram[wl] * 0.1));
-                m.AddConstr(wordLengthHistogram[wl] - lengths[wl] >= -histogramTolerance);
-                m.AddConstr(wordLengthHistogram[wl] - lengths[wl] <= histogramTolerance);
+                int histogramTolerance = Math.Max(1, (int)(wordLengthHistogram[wl] * 0.2 * wordLengthRatio));
+                //m.AddConstr(wordLengthHistogram[wl] - lengths[wl] >= -histogramTolerance);
+                //m.AddConstr(wordLengthHistogram[wl] - lengths[wl] <= histogramTolerance);
             }
 
             // question field clusters
-            var clusterPenalty = new GRBLinExpr();
-            for (int y = 0; y < sizeY - 2; y++)
+            // in a field of 2x2, minimize the nr of fields where there are 2-4 questions resp. maximize 0-1 questions
+            /*var clusterPenalty = new GRBLinExpr();
+            int area = 2;
+            for (int y = 0; y < sizeY - (area - 1); y++)
             {
-                for (int x = 0; x < sizeX - 2; x++)
+                for (int x = 0; x < sizeX - (area - 1); x++)
                 {
                     var clusterTotal = new GRBLinExpr();
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < area; i++)
                     {
-                        for (int j = 0; j < 3; j++)
+                        for (int j = 0; j < area; j++)
                         {
                             clusterTotal += fields[y + i, x + j];
                         }
                     }
-                    var varClusterTotalPenalty = m.AddVar(0, 7, 0, GRB.INTEGER, "varClusterTotalPenalty" + y + "_" + x);
-                    m.AddConstr(varClusterTotalPenalty >= clusterTotal - 2 - (1- fields[y, x]) * 9);
-                    m.AddConstr(varClusterTotalPenalty <= fields[y, x] * 7);
+                    var varClusterTotalPenalty = m.AddVar(0, 1, 0, GRB.BINARY, "varClusterTotalPenalty" + y + "_" + x);
+                    // 0-1 = good, 2-4 = bad
+                    m.AddConstr(varClusterTotalPenalty <= clusterTotal * 0.5);
+                    m.AddConstr(varClusterTotalPenalty >= (clusterTotal - 1) * (1d / 3));
                     clusterPenalty += varClusterTotalPenalty;
                 }
-            }
+            }*/
 
             //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
             // clusterPenalty * 100
-            m.SetObjective(clusterPenalty, GRB.MINIMIZE);
+            m.SetObjective(manyCrossedWords, GRB.MAXIMIZE);
 
             m.SetCallback(new GRBMipSolCallback(fields, questionType));
 

@@ -200,11 +200,12 @@ namespace Crossword
 
             return new Dictionary<string, double>()
             {
-                { "uncrossed fields", 1 - Math.Pow((Math.Max(0.2, (1d - totalCrossings/(double)totalLetters)) - 0.2) / 2, 2) },
-                { "question fields", 1 - Math.Pow((totalQuestions / (double)totalNonblocked - 0.22) * 2, 2) },
-                { "histogram", 1 - histogramTotal / 100d },
-                { "dead fields", 1 - (totalDeadFields/(double)totalLetters) * 400d },
-                { "question clusters", 1 - cTotal * 10d }
+                { "uncrossed fields", 100 - Math.Pow((Math.Max(0.2, (1d - totalCrossings/(double)totalLetters)) - 0.2) * 100d / 2, 2) },
+                { "question fields", 100 - Math.Pow((totalQuestions / (double)totalNonblocked * 100 - 22) * 2, 2) },
+                { "histogram", 100 - histogramTotal },
+                { "dead fields", 100 - (totalDeadFields/(double)totalLetters) * 400d },
+                { "question clusters", 100 - cTotal * 10d },
+                { "nrDoubleQuestions", 100 }
             };
         }
 
@@ -221,26 +222,32 @@ namespace Crossword
 
             var s = Score();
 
+            int clusterMax = 0;
             for (int y = 0; y < Clusters.GetLength(0); y++)
             {
                 for (int x = 0; x < Clusters.GetLength(1); x++)
                 {
-                    if (Clusters[y, x] != 0)
-                        Console.Write(Clusters[y, x]);
-                    else
-                        Console.Write(" ");
+                    if (Clusters.GetLength(1) <= 15)
+                    {
+                        if (Clusters[y, x] != 0)
+                            Console.Write(GetClusterCode(Clusters[y, x]));
+                        else
+                            Console.Write(" ");
+                    }
+                    clusterMax = Math.Max(clusterMax, Clusters[y, x]);
                 }
-                Console.WriteLine();
+                if (Clusters.GetLength(1) <= 15)  Console.WriteLine();
             }
+            Console.WriteLine("# of clusters: " + clusterMax);
 
             double totalScore = 0;
             foreach (var k in s.Keys)
             {
-                Console.WriteLine(k.PadRight(25) + Math.Round(s[k] * 100, 1) + "%");
+                Console.WriteLine(k.PadRight(25) + Math.Round(s[k], 1) + "%");
                 totalScore += Math.Max(s[k], 0);
             }
             totalScore /= s.Count;
-            Console.WriteLine("TOTAL".PadRight(25) + Math.Round(totalScore * 100, 1) + "%");
+            Console.WriteLine("TOTAL".PadRight(25) + Math.Round(totalScore, 1) + "%");
         }
 
         public void Save(string v)
@@ -278,6 +285,20 @@ namespace Crossword
 
             File.WriteAllText(v, fileContent);
             Console.WriteLine("Saved as " + v);
+        }
+
+        
+        private const string clusterEncoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+        private string GetClusterCode(int i)
+        {
+            if (i < clusterEncoding.Length)
+                return clusterEncoding[i].ToString();
+            else
+            {
+                int mult = i / clusterEncoding.Length;
+                int rest = i - mult * clusterEncoding.Length;
+                return "?";
+            }
         }
     }
 }

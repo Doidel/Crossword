@@ -14,8 +14,8 @@ namespace Crossword
         private GRBVar[,] questionType;
         private bool saveBest;
 
-        public static Crossword Best;
-        public static double BestScore;
+        public static Crossword[] Best = new Crossword[3];
+        public static double[] BestScores = new double[3];
 
         public GRBMipSolCallback(GRBVar[,] fields, GRBVar[,] questionType, bool saveBest = true)
         {
@@ -54,20 +54,32 @@ namespace Crossword
                 Crossword cw = new Crossword(res);
                 cw.Draw();
 
+                // Add lazy constraint to cut off current solution
+                //AddLazy()
+
                 if (saveBest)
                 {
                     var newScore = cw.Score();
-                    double newScoreTotal = 1d;
+                    double newScoreTotal = 0d;
                     foreach (var k in newScore.Keys)
-                        newScoreTotal += newScore[k];
+                        newScoreTotal += Math.Max(0, newScore[k]);
                     newScoreTotal /= newScore.Count;
-                    if (Best == null || BestScore < newScoreTotal)
+                    for (int i = 0; i < 3; i++)
                     {
-                        Best = cw;
-                        BestScore = newScoreTotal;
-                        cw.Save("best15x15");
+                        if (BestScores[i] < newScoreTotal)
+                        {
+                            var cw_temp = Best[i];
+                            var score_temp = BestScores[i];
+                            Best[i] = cw;
+                            BestScores[i] = newScoreTotal;
+                            cw.Save(cw.Grid.GetLength(0) + "x" + cw.Grid.GetLength(1) + "_" + (i+1));
+
+                            cw = cw_temp;
+                            newScoreTotal = score_temp;
+                        }
                     }
                 }
+                Console.WriteLine("-----------------------------");
             }
         }
     }

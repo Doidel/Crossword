@@ -10,8 +10,8 @@ namespace Crossword
     {
         static void Main(string[] args)
         {
-            var cwd = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\test_cases\15x15_1.cwg");
-            new GurobiSolver2(cwd);
+            var cwd = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\test_cases\40x40_1.cwg");
+            new GurobiSolver3(cwd);
         }
     }
 }
