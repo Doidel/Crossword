@@ -58,6 +58,7 @@ namespace Crossword
             GRBVar[,,] specialQuestionType = new GRBVar[sizeY, sizeX, 4];
 
 
+            var specialQuestionUsed = new GRBLinExpr[sizeY, sizeX];
             for (int y = 0; y < sizeY; y++)
             {
                 for (int x = 0; x < sizeX; x++)
@@ -75,20 +76,21 @@ namespace Crossword
                             {
                                 specialQuestionType[y, x, t] = m.AddVar(0, 1, 0, GRB.BINARY, "SpecialQType" + t + "_" + x + "_" + y);
                             }
+                            specialQuestionUsed[y,x] = specialQuestionType[y, x, 0] + specialQuestionType[y, x, 1] + specialQuestionType[y, x, 2] + specialQuestionType[y, x, 3];
                             // Max 1 special type, can also be no special question
-                            m.AddConstr(specialQuestionType[y, x, 0] + specialQuestionType[y, x, 1] + specialQuestionType[y, x, 2] + specialQuestionType[y, x, 3] <= 1);
+                            m.AddConstr(specialQuestionUsed[y, x] <= 1);
                         }
                     }
                 }
             }
 
 
+
+
             // TODO specialQuestions logic from here
 
             GRBLinExpr allFieldsSum = new GRBLinExpr();
-
-            // All non-question fields have to belong to a word
-            // E.g. if a question points right, only lengths 3 to 9 are allowed
+            
             for (int y = 0; y < sizeY; y++)
             {
                 for (int x = 0; x < sizeX; x++)
@@ -105,9 +107,12 @@ namespace Crossword
                     {
                         // for right: if [0,0] is question, [0,1..3] must not be question
                         var totalQuestionsHorizontal = fields[y, x + 1] + fields[y, x + 2] + fields[y, x + 3];
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 1], "MinWordLength3" + y + "_" + x + "_right1");
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 2], "MinWordLength3" + y + "_" + x + "_right2");
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= 1 - fields[y, x + 3], "MinWordLength3" + y + "_" + x + "_right3");
+                        var isQuestionAndPointsRight = fields[y, x] + (1 - questionType[y, x]) - 1;
+                        if ((object)specialQuestionUsed[y, x] != null)
+                            isQuestionAndPointsRight += (1 - specialQuestionUsed[y, x]) - 1;
+                        m.AddConstr(isQuestionAndPointsRight <= 1 - fields[y, x + 1], "MinWordLength3" + y + "_" + x + "_right1");
+                        m.AddConstr(isQuestionAndPointsRight <= 1 - fields[y, x + 2], "MinWordLength3" + y + "_" + x + "_right2");
+                        m.AddConstr(isQuestionAndPointsRight <= 1 - fields[y, x + 3], "MinWordLength3" + y + "_" + x + "_right3");
                     }
                     else
                     {
@@ -118,18 +123,87 @@ namespace Crossword
                     if (y + 3 < sizeY && !crossword.HasBlock(y, x, y + 3, x))
                     {
                         var totalQuestionsVertical = fields[y + 1, x] + fields[y + 2, x] + fields[y + 3, x];
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 1, x], "MinWordLength3" + y + "_" + x + "_down1");
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 2, x], "MinWordLength3" + y + "_" + x + "_down2");
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= 1 - fields[y + 3, x], "MinWordLength3" + y + "_" + x + "_down3");
+                        var isQuestionAndPointsDown = fields[y, x] + questionType[y, x] - 1;
+                        if ((object)specialQuestionUsed[y, x] != null)
+                            isQuestionAndPointsDown += (1 - specialQuestionUsed[y, x]) - 1;
+                        m.AddConstr(isQuestionAndPointsDown <= 1 - fields[y + 1, x], "MinWordLength3" + y + "_" + x + "_down1");
+                        m.AddConstr(isQuestionAndPointsDown <= 1 - fields[y + 2, x], "MinWordLength3" + y + "_" + x + "_down2");
+                        m.AddConstr(isQuestionAndPointsDown <= 1 - fields[y + 3, x], "MinWordLength3" + y + "_" + x + "_down3");
                     }
                     else
                     {
                         noQuestionTowardsDownAllowed = true;
                     }
 
+
+                    bool atLeastOneSpecialAllowed = false;
+                    if ((object)specialQuestionUsed[y, x] != null)
+                    {
+                        // down, then right
+                        if (y + 1 < sizeY && x + 2 < sizeX && !crossword.HasBlock(y + 1, x, y + 1, x + 2))
+                        {
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= fields[y + 1, x]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= fields[y + 1, x + 1]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= fields[y + 1, x + 2]);
+                            atLeastOneSpecialAllowed = true;
+                        }
+                        else
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 0] == 0);
+                        }
+                        // left, then down
+                        if (y + 2 < sizeY && x - 1 >= 0 && !crossword.HasBlock(y, x - 1, y + 2, x - 1))
+                        {
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= fields[y, x - 1]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= fields[y + 1, x - 1]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= fields[y + 2, x - 1]);
+                            atLeastOneSpecialAllowed = true;
+                        }
+                        else
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 1] == 0);
+                        }
+                        // right, then down
+                        if (y + 2 < sizeY && x + 1 < sizeX && !crossword.HasBlock(y, x + 1, y + 2, x + 1))
+                        {
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= fields[y, x + 1]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= fields[y + 1, x + 1]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= fields[y + 2, x + 1]);
+                            atLeastOneSpecialAllowed = true;
+                        }
+                        else
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 2] == 0);
+                        }
+                        // up, then right
+                        if (y - 1 <= 0 && x + 2 < sizeX && !crossword.HasBlock(y - 1, x, y - 1, x + 2))
+                        {
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= fields[y - 1, x]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= fields[y - 1, x + 1]);
+                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= fields[y - 1, x + 2]);
+                            atLeastOneSpecialAllowed = true;
+                        }
+                        else
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 3] == 0);
+                        }
+
+                        if (!atLeastOneSpecialAllowed)
+                        {
+                            m.AddConstr(specialQuestionUsed[y, x] == 0);
+                        }
+                    }
+
                     if (noQuestionToTheRightAllowed && noQuestionTowardsDownAllowed)
                     {
-                        m.AddConstr(fields[y, x] == 0, "NoQuestionAllowed" + y + "_" + x);
+                        if (!atLeastOneSpecialAllowed)
+                        {
+                            m.AddConstr(fields[y, x] == 0, "NoQuestionAllowed" + y + "_" + x);
+                        }
+                        else
+                        {
+                            m.AddConstr(specialQuestionUsed[y, x] == 1);
+                        }
                     }
                     else
                     {
@@ -138,21 +212,43 @@ namespace Crossword
                     }
 
                     // max word length constraints
+                    // for right: if [0,0] is question, [0,1..maxLength+1] must have at least another question field
                     if (x + maxWordLength + 1 < sizeX && !crossword.HasBlock(y, x, y, x + maxWordLength + 1))
                     {
-                        // for right: if [0,0] is question, [0,1..maxLength+1] must have at least another question field
                         var allHorizontalFields = new GRBLinExpr();
                         for (int xi = 1; xi <= maxWordLength + 1; xi++)
                             allHorizontalFields += fields[y, x + xi];
-                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) - 1 <= allHorizontalFields, "MaxLengthHorizontal" + y + "_" + x);
+                        m.AddConstr(fields[y, x] + (1 - questionType[y, x]) + (1 - specialQuestionUsed[y, x]) - 2 <= allHorizontalFields, "MaxLengthHorizontal" + y + "_" + x);
                     }
+                    // for down:
                     if (y + maxWordLength + 1 < sizeY && !crossword.HasBlock(y, x, y + maxWordLength + 1, x))
                     {
-                        // for down:
-                        var allVerticalFields = new GRBLinExpr();
-                        for (int yi = 1; yi <= maxWordLength + 1; yi++)
-                            allVerticalFields += fields[y + yi, x];
-                        m.AddConstr(fields[y, x] + questionType[y, x] - 1 <= allVerticalFields, "MaxLengthVertical" + y + "_" + x);
+                        var fieldsSum = fields.SumRange(x, y + 1, x, y + maxWordLength + 1);
+                        m.AddConstr(fields[y, x] + questionType[y, x] + (1 - specialQuestionUsed[y, x]) - 2 <= fieldsSum, "MaxLengthVertical" + y + "_" + x);
+                    }
+                    // down, then right
+                    if (y + 1 < sizeY && x + maxWordLength < sizeX && !crossword.HasBlock(y + 1, x, y + 1, x + maxWordLength))
+                    {
+                        var fieldsSum = fields.SumRange(y + 1, x, y + 1, x + maxWordLength);
+                        m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= fieldsSum, "MaxLengthSpecialQuestion0_" + y + "_" + x);
+                    }
+                    // left, then down
+                    if (y + maxWordLength < sizeY && x - 1 >= 0 && !crossword.HasBlock(y, x - 1, y + maxWordLength, x - 1))
+                    {
+                        var fieldsSum = fields.SumRange(y, x - 1, y + maxWordLength, x - 1);
+                        m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= fieldsSum, "MaxLengthSpecialQuestion1_" + y + "_" + x);
+                    }
+                    // right, then down
+                    if (y + maxWordLength < sizeY && x + 1 < sizeX && !crossword.HasBlock(y, x + 1, y + maxWordLength, x + 1))
+                    {
+                        var fieldsSum = fields.SumRange(y, x + 1, y + maxWordLength, x + 1);
+                        m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= fieldsSum, "MaxLengthSpecialQuestion2_" + y + "_" + x);
+                    }
+                    // up, then right
+                    if (y - 1 <= 0 && x + maxWordLength < sizeX && !crossword.HasBlock(y - 1, x, y - 1, x + maxWordLength))
+                    {
+                        var fieldsSum = fields.SumRange(y - 1, x, y - 1, x + maxWordLength);
+                        m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= fieldsSum, "MaxLengthSpecialQuestion3_" + y + "_" + x);
                     }
                 }
             }

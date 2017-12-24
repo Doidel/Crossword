@@ -138,5 +138,28 @@ namespace Crossword
                     _prefix == null ? null : Enumerable.Range(0, _count).Select(i => $"{_prefix}[{i}]").ToArray()
                 );
         }
+
+        public static GRBLinExpr SumRange(this GRBVar[,] _vars, int x, int y, int x2, int y2)
+        {
+            if (y2 == -1) y2 = y;
+            if (x2 == -1) x2 = x;
+
+            if (y < 0 || y >= _vars.GetLength(0)) throw new ArgumentException("y out of bounds");
+            if (x < 0 || x >= _vars.GetLength(1)) throw new ArgumentException("x out of bounds");
+            if (y2 < 0 || y2 >= _vars.GetLength(0)) throw new ArgumentException("y2 out of bounds");
+            if (x2 < 0 || x2 >= _vars.GetLength(1)) throw new ArgumentException("x2 out of bounds");
+            if (x2 < x) throw new ArgumentException("x2 < x");
+            if (y2 < y) throw new ArgumentException("y2 < y");
+
+            var sum = new GRBLinExpr();
+            for (int i = y; i <= y2; i++)
+            {
+                for (int j = x; j <= x2; j++)
+                {
+                    sum += _vars[i, j];
+                }
+            }
+            return sum;
+        }
     }
 }

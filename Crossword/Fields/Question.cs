@@ -27,7 +27,22 @@ namespace Crossword.Fields
 
         public override string ToString()
         {
-            return Arrow == ArrowType.Down ? "D" : "R";
+            switch (Arrow)
+            {
+                case ArrowType.Down:
+                    return "v";
+                case ArrowType.DownRight:
+                    return "└";
+                case ArrowType.LeftDown:
+                    return "┌";
+                case ArrowType.Right:
+                    return ">";
+                case ArrowType.RightDown:
+                    return "¬";
+                case ArrowType.UpRight:
+                    return "┌";
+            }
+            return "?";
         }
     }
 }
