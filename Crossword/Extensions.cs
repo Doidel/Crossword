@@ -139,7 +139,7 @@ namespace Crossword
                 );
         }
 
-        public static GRBLinExpr SumRange(this GRBVar[,] _vars, int x, int y, int x2, int y2)
+        public static GRBLinExpr SumRange(this GRBVar[,] _vars, int y, int x, int y2, int x2)
         {
             if (y2 == -1) y2 = y;
             if (x2 == -1) x2 = x;
