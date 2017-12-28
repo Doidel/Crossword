@@ -278,7 +278,7 @@ namespace Crossword
             // clusterPenalty * 100
             m.SetObjective(manyCrossedWords, GRB.MAXIMIZE);
 
-            m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType));
+            m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType, null));
 
             m.Optimize();
             m.ComputeIIS();

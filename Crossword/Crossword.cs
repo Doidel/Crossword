@@ -102,6 +102,7 @@ namespace Crossword
                     {
                         totalQuestions++;
                         var q = (Question)Grid[y, x];
+                        
                         if (q.Arrow == Question.ArrowType.Down)
                         {
                             int offset = 1;
@@ -113,7 +114,7 @@ namespace Crossword
                             }
                             actualWordlengths[offset - 1]++;
                         }
-                        else
+                        else if (q.Arrow == Question.ArrowType.Right)
                         {
                             int offset = 1;
                             while (x + offset < sizeX && Grid[y, x + offset] is Letter)
@@ -123,6 +124,50 @@ namespace Crossword
                                 offset++;
                             }
                             actualWordlengths[offset - 1]++;
+                        }
+                        else if (q.Arrow == Question.ArrowType.DownRight)
+                        {
+                            int offset = 0;
+                            while (x + offset < sizeX && Grid[y+1, x + offset] is Letter)
+                            {
+                                if (offset > maxWordLength) throw new ArgumentException("Word too long");
+                                crossings[y+1, x + offset]++;
+                                offset++;
+                            }
+                            actualWordlengths[offset]++;
+                        }
+                        else if (q.Arrow == Question.ArrowType.LeftDown)
+                        {
+                            int offset = 0;
+                            while (y + offset < sizeY && Grid[y + offset, x - 1] is Letter)
+                            {
+                                if (offset > maxWordLength) throw new ArgumentException("Word too long");
+                                crossings[y + offset, x - 1]++;
+                                offset++;
+                            }
+                            actualWordlengths[offset]++;
+                        }
+                        else if (q.Arrow == Question.ArrowType.RightDown)
+                        {
+                            int offset = 0;
+                            while (y + offset < sizeY && Grid[y + offset, x + 1] is Letter)
+                            {
+                                if (offset > maxWordLength) throw new ArgumentException("Word too long");
+                                crossings[y + offset, x + 1]++;
+                                offset++;
+                            }
+                            actualWordlengths[offset]++;
+                        }
+                        else if (q.Arrow == Question.ArrowType.UpRight)
+                        {
+                            int offset = 0;
+                            while (x + offset < sizeX && Grid[y - 1, x + offset] is Letter)
+                            {
+                                if (offset > maxWordLength) throw new ArgumentException("Word too long");
+                                crossings[y - 1, x + offset]++;
+                                offset++;
+                            }
+                            actualWordlengths[offset]++;
                         }
                     }
                     else if (Grid[y, x] is Blocked)

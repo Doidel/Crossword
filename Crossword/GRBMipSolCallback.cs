@@ -13,17 +13,19 @@ namespace Crossword
         private Crossword inputCw;
         private GRBVar[,] fields;
         private GRBVar[,] questionType;
-        private bool saveBest;
+        private GRBVar[,,] specialQuestionType;
 
+        private bool saveBest;
         public static Crossword[] Best = new Crossword[3];
         public static double[] BestScores = new double[3];
 
-        public GRBMipSolCallback(Crossword inputCrossword, GRBVar[,] fields, GRBVar[,] questionType, bool saveBest = true)
+        public GRBMipSolCallback(Crossword inputCrossword, GRBVar[,] fields, GRBVar[,] questionType, GRBVar[,,] specialQuestionType, bool saveBest = true)
         {
             this.inputCw = inputCrossword;
             this.fields = fields;
             this.questionType = questionType;
             this.saveBest = saveBest;
+            this.specialQuestionType = specialQuestionType;
         }
 
         protected override void Callback()
@@ -45,8 +47,40 @@ namespace Crossword
                             var letterOrQuestion = GetSolution(fields[y, x]) > 0.5 ? 1 : 0;
                             if (letterOrQuestion == 1)
                             {
-                                var qType = GetSolution(questionType[y, x]) > 0.5 ? 1 : 0;
-                                res[y, x] = new Question(qType == 0 ? Question.ArrowType.Right : Question.ArrowType.Down);
+                                for (int type = 0; type < 4; type++)
+                                {
+                                    if ((object)specialQuestionType[y, x, type] != null)
+                                    {
+                                        if (GetSolution(specialQuestionType[y, x, type]) > 0.5)
+                                        {
+                                            // 0 = Down, then right
+                                            // 1 = Left, then down
+                                            // 2 = Right, then down
+                                            // 3 = Up, then right
+                                            switch (type)
+                                            {
+                                                case 0:
+                                                    res[y, x] = new Question(Question.ArrowType.DownRight);
+                                                    break;
+                                                case 1:
+                                                    res[y, x] = new Question(Question.ArrowType.LeftDown);
+                                                    break;
+                                                case 2:
+                                                    res[y, x] = new Question(Question.ArrowType.RightDown);
+                                                    break;
+                                                case 3:
+                                                    res[y, x] = new Question(Question.ArrowType.UpRight);
+                                                    break;
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (res[y, x] == null)
+                                {
+                                    var qType = GetSolution(questionType[y, x]) > 0.5 ? 1 : 0;
+                                    res[y, x] = new Question(qType == 0 ? Question.ArrowType.Right : Question.ArrowType.Down);
+                                }
                             }
                             else
                             {
