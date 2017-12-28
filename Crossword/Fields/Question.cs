@@ -40,7 +40,7 @@ namespace Crossword.Fields
                 case ArrowType.RightDown:
                     return "¬";
                 case ArrowType.UpRight:
-                    return "┌";
+                    return "╔";
             }
             return "?";
         }
