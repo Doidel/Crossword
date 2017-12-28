@@ -350,7 +350,7 @@ namespace Crossword
 
             //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
             // clusterPenalty * 100
-            m.SetObjective(deadFieldPenalty + clusterPenalty, GRB.MINIMIZE);
+            m.SetObjective(clusterPenalty, GRB.MINIMIZE);
 
             m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType, null));
 

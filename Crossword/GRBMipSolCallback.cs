@@ -47,32 +47,35 @@ namespace Crossword
                             var letterOrQuestion = GetSolution(fields[y, x]) > 0.5 ? 1 : 0;
                             if (letterOrQuestion == 1)
                             {
-                                for (int type = 0; type < 4; type++)
+                                if (specialQuestionType != null)
                                 {
-                                    if ((object)specialQuestionType[y, x, type] != null)
+                                    for (int type = 0; type < 4; type++)
                                     {
-                                        if (GetSolution(specialQuestionType[y, x, type]) > 0.5)
+                                        if ((object)specialQuestionType[y, x, type] != null)
                                         {
-                                            // 0 = Down, then right
-                                            // 1 = Left, then down
-                                            // 2 = Right, then down
-                                            // 3 = Up, then right
-                                            switch (type)
+                                            if (GetSolution(specialQuestionType[y, x, type]) > 0.5)
                                             {
-                                                case 0:
-                                                    res[y, x] = new Question(Question.ArrowType.DownRight);
-                                                    break;
-                                                case 1:
-                                                    res[y, x] = new Question(Question.ArrowType.LeftDown);
-                                                    break;
-                                                case 2:
-                                                    res[y, x] = new Question(Question.ArrowType.RightDown);
-                                                    break;
-                                                case 3:
-                                                    res[y, x] = new Question(Question.ArrowType.UpRight);
-                                                    break;
+                                                // 0 = Down, then right
+                                                // 1 = Left, then down
+                                                // 2 = Right, then down
+                                                // 3 = Up, then right
+                                                switch (type)
+                                                {
+                                                    case 0:
+                                                        res[y, x] = new Question(Question.ArrowType.DownRight);
+                                                        break;
+                                                    case 1:
+                                                        res[y, x] = new Question(Question.ArrowType.LeftDown);
+                                                        break;
+                                                    case 2:
+                                                        res[y, x] = new Question(Question.ArrowType.RightDown);
+                                                        break;
+                                                    case 3:
+                                                        res[y, x] = new Question(Question.ArrowType.UpRight);
+                                                        break;
+                                                }
+                                                break;
                                             }
-                                            break;
                                         }
                                     }
                                 }
