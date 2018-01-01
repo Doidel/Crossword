@@ -50,8 +50,8 @@ Terminology
 * Island: A group of 1 or more blocked fields (may contain neither a question nor a letter)
 * Uncrossed field: a letter belonging to only one question
 * Dead fields: 2 or more uncrossed fields next to each other (only vertically or horizontally)
-* Cluster of question fields: Question fields that can be joined
-
+* Cluster of question fields: Question fields next to each other (also diagonally)
+see also: /useful/CrosswordDescription.png
 
 Constraints
 ============
@@ -140,9 +140,9 @@ Rating Example
 Input:
 3
 3
-…
-…
-…
+...
+...
+...
 
 Solved:
 3
@@ -165,3 +165,25 @@ Dead fields: 100.0 (no dead fields, yay!)
 Clusters: 55.0 (3 question fields in a row, although it could be worse)
 Double questions: 100.0 (no double questions, so that's ok)
 
+
+Rating function details
+=======================
+For those who want to know the rating functions a bit more in detail, you can read it here:
+
+1) Percentage of question fields
+	score = 100 - (abs(x-22)*2)²
+2) Percentage of uncrossed solution fields
+	score = 100 – ((max(20,x)-20)/2)²
+3) Histogram of word lengths
+	score = 100 – sum((xi-yi)²)/8
+4) Number of "dead" fields
+	This counts all uncrossed fields with a neighbour which is also uncrossed
+	score = 100 – (deadFields/TotalSolutionFields)*400
+5) Average size of question field clusters
+	Looks at every group of connected question fields, so a cluster may have size 1 to n.
+	However, only clusters with size 3 or bigger are penalized. 
+	score = 100 – (sum((clustersize|>3)²)/clusters)*10
+	In the example above there are two clusters, one with size 3 and one with size 1. Score is therefore 100 - (3²/2)*2 = 55
+6) Number of double questions
+	double questions are optional, but if you want to use them, they should be around 22% of the questions or 4.84% of all unblocked fields.
+	score = X=0: 100 | x>0: 100 – (abs(x-22))²

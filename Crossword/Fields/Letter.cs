@@ -14,6 +14,11 @@ namespace Crossword.Fields
             L = letter;
         }
 
+        public override Field DeepClone()
+        {
+            return new Letter(L);
+        }
+
         public override string ToString()
         {
             return L.ToString();

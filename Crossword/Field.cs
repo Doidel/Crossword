@@ -8,5 +8,6 @@ namespace Crossword
 {
     public abstract class Field
     {
+        public abstract Field DeepClone();
     }
 }

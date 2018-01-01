@@ -13,14 +13,18 @@ namespace Crossword
         public Field[,] Grid;
         public int[,] Clusters { get; private set; }
 
+        private string Name;
+
         public Crossword(string path)
         {
             ReadFromFile(path);
+            Name = Path.GetFileNameWithoutExtension(path);
         }
 
-        public Crossword(Field[,] grid)
+        public Crossword(Field[,] grid, string name = null)
         {
             Grid = grid;
+            Name = name == null ? Grid.GetLength(0) + "x" + Grid.GetLength(1) : Name;
         }
 
         private void ReadFromFile(string path)
@@ -39,11 +43,29 @@ namespace Crossword
                     {
                         Grid[i, j] = new Empty();
                     }
-                    else
+                    else if (line[j] == ' ')
                     {
                         Grid[i, j] = new Blocked();
                     }
+                    else if (line[j] == '?')
+                    {
+                        Grid[i, j] = new Question(Question.ArrowType.Down);
+                    }
+                    else
+                    {
+                        Grid[i, j] = new Letter(line[j]);
+                    }
                 }
+            }
+
+            // if available, read question information
+            for (int ql = Grid.GetLength(0) + 2; ql < lines.Length; ql++)
+            {
+                var qInfo = lines[ql].Split(' ');
+                int y = int.Parse(qInfo[0]);
+                int x = int.Parse(qInfo[1]);
+                if (!(Grid[y, x] is Question)) throw new ArgumentException("Grid question inconsistency");
+                Grid[y, x] = new Question((Question.ArrowType)(int.Parse(qInfo[2])));
             }
         }
 
@@ -106,7 +128,7 @@ namespace Crossword
                         if (q.Arrow == Question.ArrowType.Down)
                         {
                             int offset = 1;
-                            while (y + offset < sizeY && Grid[y + offset, x] is Letter)
+                            while (y + offset < sizeY && isEmptyOrLetter(Grid[y + offset, x]))
                             {
                                 if (offset > maxWordLength + 1) throw new ArgumentException("Word too long");
                                 crossings[y + offset, x]++;
@@ -117,7 +139,7 @@ namespace Crossword
                         else if (q.Arrow == Question.ArrowType.Right)
                         {
                             int offset = 1;
-                            while (x + offset < sizeX && Grid[y, x + offset] is Letter)
+                            while (x + offset < sizeX && isEmptyOrLetter(Grid[y, x + offset]))
                             {
                                 if (offset > maxWordLength + 1) throw new ArgumentException("Word too long");
                                 crossings[y, x + offset]++;
@@ -128,7 +150,7 @@ namespace Crossword
                         else if (q.Arrow == Question.ArrowType.DownRight)
                         {
                             int offset = 0;
-                            while (x + offset < sizeX && Grid[y+1, x + offset] is Letter)
+                            while (x + offset < sizeX && isEmptyOrLetter(Grid[y+1, x + offset]))
                             {
                                 if (offset > maxWordLength) throw new ArgumentException("Word too long");
                                 crossings[y+1, x + offset]++;
@@ -139,7 +161,7 @@ namespace Crossword
                         else if (q.Arrow == Question.ArrowType.LeftDown)
                         {
                             int offset = 0;
-                            while (y + offset < sizeY && Grid[y + offset, x - 1] is Letter)
+                            while (y + offset < sizeY && isEmptyOrLetter(Grid[y + offset, x - 1]))
                             {
                                 if (offset > maxWordLength) throw new ArgumentException("Word too long");
                                 crossings[y + offset, x - 1]++;
@@ -150,7 +172,7 @@ namespace Crossword
                         else if (q.Arrow == Question.ArrowType.RightDown)
                         {
                             int offset = 0;
-                            while (y + offset < sizeY && Grid[y + offset, x + 1] is Letter)
+                            while (y + offset < sizeY && isEmptyOrLetter(Grid[y + offset, x + 1]))
                             {
                                 if (offset > maxWordLength) throw new ArgumentException("Word too long");
                                 crossings[y + offset, x + 1]++;
@@ -161,7 +183,7 @@ namespace Crossword
                         else if (q.Arrow == Question.ArrowType.UpRight)
                         {
                             int offset = 0;
-                            while (x + offset < sizeX && Grid[y - 1, x + offset] is Letter)
+                            while (x + offset < sizeX && isEmptyOrLetter(Grid[y - 1, x + offset]))
                             {
                                 if (offset > maxWordLength) throw new ArgumentException("Word too long");
                                 crossings[y - 1, x + offset]++;
@@ -184,17 +206,17 @@ namespace Crossword
             {
                 for (int x = 0; x < sizeX; x++)
                 {
-                    if (Grid[y, x] is Letter)
+                    if (isEmptyOrLetter(Grid[y, x]))
                     {
                         totalLetters++;
                         totalCrossings += Math.Max(crossings[y, x] - 1, 0);
 
                         if (crossings[y, x] == 1)
                         {
-                            if ((x + 1 < sizeX && Grid[y, x + 1] is Letter && crossings[y, x + 1] == 1) ||
-                                (x - 1 >= 0 && Grid[y, x - 1] is Letter && crossings[y, x - 1] == 1) ||
-                                (y + 1 < sizeY && Grid[y + 1, x] is Letter && crossings[y + 1, x] == 1) ||
-                                (y - 1 >= 0 && Grid[y - 1, x] is Letter && crossings[y - 1, x] == 1))
+                            if ((x + 1 < sizeX && isEmptyOrLetter(Grid[y, x + 1]) && crossings[y, x + 1] == 1) ||
+                                (x - 1 >= 0 && isEmptyOrLetter(Grid[y, x - 1]) && crossings[y, x - 1] == 1) ||
+                                (y + 1 < sizeY && isEmptyOrLetter(Grid[y + 1, x]) && crossings[y + 1, x] == 1) ||
+                                (y - 1 >= 0 && isEmptyOrLetter(Grid[y - 1, x]) && crossings[y - 1, x] == 1))
                             {
                                 totalDeadFields++;
                             }
@@ -276,6 +298,11 @@ namespace Crossword
             };
         }
 
+        private bool isEmptyOrLetter(Field field)
+        {
+            return field is Letter || field is Empty;
+        }
+
         public void Draw()
         {
             for (int y = 0; y < Grid.GetLength(0); y++)
@@ -319,6 +346,7 @@ namespace Crossword
 
         public void Save(string v)
         {
+            v = Name + v;
             if (!v.EndsWith(".cwg")) v = v + ".cwg";
 
             string fileContent = "";
@@ -366,6 +394,19 @@ namespace Crossword
                 int rest = i - mult * clusterEncoding.Length;
                 return "?";
             }
+        }
+
+        public Crossword DeepClone()
+        {
+            var fieldClone = new Field[Grid.GetLength(0), Grid.GetLength(1)];
+            for (int y = 0; y < Grid.GetLength(0); y++)
+            {
+                for (int x = 0; x < Grid.GetLength(1); x++)
+                {
+                    fieldClone[y, x] = Grid[y, x].DeepClone();
+                }
+            }
+            return new Crossword(Grid, Name);
         }
     }
 }

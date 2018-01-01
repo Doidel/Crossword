@@ -87,7 +87,7 @@ namespace Crossword
                             }
                             else
                             {
-                                res[y, x] = new Letter('.');
+                                res[y, x] = new Empty();
                             }
                         } else
                         {
@@ -117,7 +117,7 @@ namespace Crossword
                             var score_temp = BestScores[i];
                             Best[i] = cw;
                             BestScores[i] = newScoreTotal;
-                            cw.Save(cw.Grid.GetLength(0) + "x" + cw.Grid.GetLength(1) + "_" + (i+1));
+                            cw.Save("_" + (i+1));
 
                             cw = cw_temp;
                             newScoreTotal = score_temp;

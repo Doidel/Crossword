@@ -44,5 +44,10 @@ namespace Crossword.Fields
             }
             return "?";
         }
+
+        public override Field DeepClone()
+        {
+            return new Question(Arrow);
+        }
     }
 }

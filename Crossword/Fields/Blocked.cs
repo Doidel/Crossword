@@ -8,9 +8,14 @@ namespace Crossword.Fields
 {
     public class Blocked : Field
     {
+        public override Field DeepClone()
+        {
+            return new Blocked();
+        }
+
         public override string ToString()
         {
-            return "#";
+            return " ";
         }
     }
 }
