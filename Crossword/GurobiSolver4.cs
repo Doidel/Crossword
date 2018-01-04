@@ -16,6 +16,7 @@ namespace Crossword
         public GurobiSolver4(Crossword crossword)
         {
             var wordLengthHistogram = new Dictionary<int, double>() {
+                { 2, 0 },
                 { 3, 18 },
                 { 4, 24 },
                 { 5, 20 },
@@ -26,6 +27,7 @@ namespace Crossword
             };
 
             const int maxWordLength = 9;
+            const int minWordLength = 2;
 
             int sizeY = crossword.Grid.GetLength(0);
             int sizeX = crossword.Grid.GetLength(1);
@@ -77,7 +79,7 @@ namespace Crossword
                             }
                             specialQuestionUsed[y, x] = specialQuestionType[y, x, 0] + specialQuestionType[y, x, 1] + specialQuestionType[y, x, 2] + specialQuestionType[y, x, 3];
                             // Max 1 special type, can also be no special question
-                            m.AddConstr(specialQuestionUsed[y, x] <= 1, "MaxOneSpecialQuestion"+ y + "_" + x);
+                            m.AddConstr(specialQuestionUsed[y, x] <= 1, "MaxOneSpecialQuestion" + y + "_" + x);
                         }
                     }
                 }
@@ -87,7 +89,7 @@ namespace Crossword
             //m.AddConstr(specialQuestionType[0, 0, 0] == 1);
 
 
-            
+
 
             GRBLinExpr allFieldsSum = new GRBLinExpr();
 
@@ -103,16 +105,15 @@ namespace Crossword
 
                     bool noQuestionToTheRightAllowed = false;
                     bool noQuestionTowardsDownAllowed = false;
-                    if (x + 3 < sizeX && !crossword.HasBlock(y, x, y, x + 3))
+                    if (x + minWordLength < sizeX && !crossword.HasBlock(y, x, y, x + minWordLength))
                     {
                         // for right: if [0,0] is question, [0,1..3] must not be question
-                        var totalQuestionsHorizontal = fields[y, x + 1] + fields[y, x + 2] + fields[y, x + 3];
+                        var totalQuestionsHorizontal = fields.SumRange(y, x + 1, y, x + minWordLength);
                         var isQuestionAndPointsRight = fields[y, x] + (1 - questionType[y, x]) - 1;
                         if ((object)specialQuestionUsed[y, x] != null)
                             isQuestionAndPointsRight += (1 - specialQuestionUsed[y, x]) - 1;
-                        m.AddConstr(isQuestionAndPointsRight <= 1 - fields[y, x + 1], "MinWordLength3" + y + "_" + x + "_right1");
-                        m.AddConstr(isQuestionAndPointsRight <= 1 - fields[y, x + 2], "MinWordLength3" + y + "_" + x + "_right2");
-                        m.AddConstr(isQuestionAndPointsRight <= 1 - fields[y, x + 3], "MinWordLength3" + y + "_" + x + "_right3");
+                        for (int len = 1; len <= minWordLength; len++)
+                            m.AddConstr(isQuestionAndPointsRight <= 1 - fields[y, x + len], "MinWordLength3" + y + "_" + x + "_right" + len);
                     }
                     else
                     {
@@ -120,15 +121,14 @@ namespace Crossword
                     }
 
                     // for down:
-                    if (y + 3 < sizeY && !crossword.HasBlock(y, x, y + 3, x))
+                    if (y + minWordLength < sizeY && !crossword.HasBlock(y, x, y + minWordLength, x))
                     {
-                        var totalQuestionsVertical = fields[y + 1, x] + fields[y + 2, x] + fields[y + 3, x];
+                        var totalQuestionsVertical = fields.SumRange(y + 1, x, y + minWordLength, x);
                         var isQuestionAndPointsDown = fields[y, x] + questionType[y, x] - 1;
                         if ((object)specialQuestionUsed[y, x] != null)
                             isQuestionAndPointsDown += (1 - specialQuestionUsed[y, x]) - 1;
-                        m.AddConstr(isQuestionAndPointsDown <= 1 - fields[y + 1, x], "MinWordLength3" + y + "_" + x + "_down1");
-                        m.AddConstr(isQuestionAndPointsDown <= 1 - fields[y + 2, x], "MinWordLength3" + y + "_" + x + "_down2");
-                        m.AddConstr(isQuestionAndPointsDown <= 1 - fields[y + 3, x], "MinWordLength3" + y + "_" + x + "_down3");
+                        for (int len = 1; len <= minWordLength; len++)
+                            m.AddConstr(isQuestionAndPointsDown <= 1 - fields[y + len, x], "MinWordLength3" + y + "_" + x + "_down" + len);
                     }
                     else
                     {
@@ -140,11 +140,10 @@ namespace Crossword
                     if ((object)specialQuestionUsed[y, x] != null)
                     {
                         // down, then right
-                        if (y + 1 < sizeY && x + 2 < sizeX && !crossword.HasBlock(y + 1, x, y + 1, x + 2))
+                        if (y + 1 < sizeY && x + minWordLength - 1 < sizeX && !crossword.HasBlock(y + 1, x, y + 1, x + minWordLength - 1))
                         {
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= 1 - fields[y + 1, x], "MinWordLength3" + y + "_" + x + "_downRight1");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= 1 - fields[y + 1, x + 1], "MinWordLength3" + y + "_" + x + "_downRight2");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= 1 - fields[y + 1, x + 2], "MinWordLength3" + y + "_" + x + "_downRight3");
+                            for (int len = 1; len <= minWordLength; len++)
+                                m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= 1 - fields[y + 1, x + len - 1], "MinWordLength3" + y + "_" + x + "_downRight" + len);
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -152,11 +151,10 @@ namespace Crossword
                             m.AddConstr(specialQuestionType[y, x, 0] == 0, "NoSpecialQuestionAllowed" + y + "_" + x + "_downRight");
                         }
                         // left, then down
-                        if (y + 2 < sizeY && x - 1 >= 0 && !crossword.HasBlock(y, x - 1, y + 2, x - 1))
+                        if (y + minWordLength - 1 < sizeY && x - 1 >= 0 && !crossword.HasBlock(y, x - 1, y + minWordLength - 1, x - 1))
                         {
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= 1 - fields[y, x - 1], "MinWordLength3" + y + "_" + x + "_leftDown1");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= 1 - fields[y + 1, x - 1], "MinWordLength3" + y + "_" + x + "_leftDown2");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= 1 - fields[y + 2, x - 1], "MinWordLength3" + y + "_" + x + "_leftDown3");
+                            for (int len = 1; len <= minWordLength; len++)
+                                m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= 1 - fields[y + len - 1, x - 1], "MinWordLength3" + y + "_" + x + "_leftDown" + len);
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -164,11 +162,10 @@ namespace Crossword
                             m.AddConstr(specialQuestionType[y, x, 1] == 0, "NoSpecialQuestionAllowed" + y + "_" + x + "_leftDown");
                         }
                         // right, then down
-                        if (y + 2 < sizeY && x + 1 < sizeX && !crossword.HasBlock(y, x + 1, y + 2, x + 1))
+                        if (y + minWordLength - 1 < sizeY && x + 1 < sizeX && !crossword.HasBlock(y, x + 1, y + minWordLength - 1, x + 1))
                         {
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= 1 - fields[y, x + 1], "MinWordLength3" + y + "_" + x + "_rightDown1");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= 1 - fields[y + 1, x + 1], "MinWordLength3" + y + "_" + x + "_rightDown2");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= 1 - fields[y + 2, x + 1], "MinWordLength3" + y + "_" + x + "_rightDown3");
+                            for (int len = 1; len <= minWordLength; len++)
+                                m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= 1 - fields[y + len - 1, x + 1], "MinWordLength3" + y + "_" + x + "_rightDown"+len);
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -176,11 +173,10 @@ namespace Crossword
                             m.AddConstr(specialQuestionType[y, x, 2] == 0, "NoSpecialQuestionAllowed" + y + "_" + x + "_rightDown");
                         }
                         // up, then right
-                        if (y - 1 >= 0 && x + 2 < sizeX && !crossword.HasBlock(y - 1, x, y - 1, x + 2))
+                        if (y - 1 >= 0 && x + minWordLength - 1 < sizeX && !crossword.HasBlock(y - 1, x, y - 1, x + minWordLength - 1))
                         {
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= 1 - fields[y - 1, x], "MinWordLength3" + y + "_" + x + "_upRight1");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= 1 - fields[y - 1, x + 1], "MinWordLength3" + y + "_" + x + "_upRight2");
-                            m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= 1 - fields[y - 1, x + 2], "MinWordLength3" + y + "_" + x + "_upRight3");
+                            for (int len = 1; len <= minWordLength; len++)
+                                m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= 1 - fields[y - 1, x + len - 1], "MinWordLength3" + y + "_" + x + "_upRight" + len);
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -374,9 +370,9 @@ namespace Crossword
             // right now, [0,0] can only be a question
             //if (!crossword.HasBlock(0, 0)) m.AddConstr(fields[0, 0] == 1);
             // and similarly the bottom 3x3 can only be letters
-            for (int y = sizeY - 3; y < sizeY; y++)
-                for (int x = sizeX - 3; x < sizeX; x++)
-                    if (!crossword.HasBlock(y, x)) m.AddConstr(fields[y, x] == 0, "Bottom3x3OnlyLetters_" + y + "_" + x);
+            for (int y = sizeY - minWordLength; y < sizeY; y++)
+                for (int x = sizeX - minWordLength; x < sizeX; x++)
+                    if (!crossword.HasBlock(y, x)) m.AddConstr(fields[y, x] == 0, "BottomOnlyLetters_" + y + "_" + x);
 
             // Objective:
             // questions should be around ~22% (allFieldsSum ~= amountQuestions)
@@ -400,7 +396,7 @@ namespace Crossword
                         // if total < 2 && is a letter ==> uncrossed
                         m.AddConstr(uncrossedLetters[y, x] <= 1 - fields[y, x], "uncrossedConstr1" + y + "_" + x); // if it's a question it can't be an uncrossed letter
                         m.AddConstr(uncrossedLetters[y, x] >= 1 - partOfWordTotal * 0.5 - fields[y, x], "uncrossedConstr2" + y + "_" + x);
-                        m.AddConstr(uncrossedLetters[y, x] <= 1 - (partOfWordTotal-1) * (1d/5), "uncrossedConstr3" + y + "_" + x);
+                        m.AddConstr(uncrossedLetters[y, x] <= 1 - (partOfWordTotal - 1) * (1d / 5), "uncrossedConstr3" + y + "_" + x);
 
                         /*m.AddConstr(uncrossedLetters[y, x] <= partOfWordTotal); // if 0 ==> 0 NECESSARY?
                         m.AddConstr(uncrossedLetters[y, x] <= 2 - partOfAWord[y, x, 0] - partOfAWord[y, x, 1]); // if 2 ==> 0
@@ -495,7 +491,54 @@ namespace Crossword
 
             //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
             // clusterPenalty * 100
-            m.SetObjective(deadFieldPenalty+0*clusterPenalty, GRB.MINIMIZE);
+            m.SetObjective(deadFieldPenalty + clusterPenalty, GRB.MINIMIZE);
+
+            // Insert previous solution
+            /*var cwdCheck = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\15x15_1.cwg");
+            cwdCheck.Draw();
+            for (int y = 0; y < cwdCheck.Grid.GetLength(0); y++)
+            {
+                for (int x = 0; x < cwdCheck.Grid.GetLength(1); x++)
+                {
+                    if (cwdCheck.Grid[y, x] is Question)
+                    {
+                        m.AddConstr(fields[y, x] == 1);
+                        var q = (Question)cwdCheck.Grid[y, x];
+                        if (q.Arrow == Question.ArrowType.Right)
+                        {
+                            m.AddConstr(questionType[y, x] == 0);
+                            if ((object)specialQuestionType[y, x, 0] != null)
+                                m.AddConstr(specialQuestionType[y, x, 0]+ specialQuestionType[y, x, 1] + specialQuestionType[y, x, 2] + specialQuestionType[y, x, 3] == 0);
+                        }
+                        else if (q.Arrow == Question.ArrowType.Down)
+                        {
+                            m.AddConstr(questionType[y, x] == 1);
+                            if ((object)specialQuestionType[y, x, 0] != null)
+                                m.AddConstr(specialQuestionType[y, x, 0] + specialQuestionType[y, x, 1] + specialQuestionType[y, x, 2] + specialQuestionType[y, x, 3] == 0);
+                        }
+                        else if (q.Arrow == Question.ArrowType.DownRight)
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 0] == 1);
+                        }
+                        else if (q.Arrow == Question.ArrowType.LeftDown)
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 1] == 1);
+                        }
+                        else if (q.Arrow == Question.ArrowType.RightDown)
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 2] == 1);
+                        }
+                        else if (q.Arrow == Question.ArrowType.UpRight)
+                        {
+                            m.AddConstr(specialQuestionType[y, x, 3] == 1);
+                        }
+                    }
+                    else if (cwdCheck.Grid[y, x] is Letter)
+                    {
+                        m.AddConstr(fields[y, x] == 0);
+                    }
+                }
+            }*/
 
             m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType, specialQuestionType));
 

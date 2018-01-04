@@ -94,6 +94,7 @@ namespace Crossword
         public Dictionary<string, double> Score()
         {
             var wordLengthHistogram = new Dictionary<int, int>() {
+                { 2, 0 },
                 { 3, 18 },
                 { 4, 24 },
                 { 5, 20 },
@@ -321,7 +322,7 @@ namespace Crossword
             {
                 for (int x = 0; x < Clusters.GetLength(1); x++)
                 {
-                    if (Clusters.GetLength(1) <= 15)
+                    if (false && Clusters.GetLength(1) <= 15)
                     {
                         if (Clusters[y, x] != 0)
                             Console.Write(GetClusterCode(Clusters[y, x]));
@@ -330,7 +331,7 @@ namespace Crossword
                     }
                     clusterMax = Math.Max(clusterMax, Clusters[y, x]);
                 }
-                if (Clusters.GetLength(1) <= 15)  Console.WriteLine();
+                if (false && Clusters.GetLength(1) <= 15)  Console.WriteLine();
             }
             Console.WriteLine("# of clusters: " + clusterMax);
 
