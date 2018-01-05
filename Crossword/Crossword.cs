@@ -293,13 +293,15 @@ namespace Crossword
             double histogramTotal = 0;
             var totalWords = actualWordlengths.Values.Sum();
             double totalTest = 0;
+            Console.Write("Word Count: ");
             for (int wl = 2; wl <= 9; wl++)
             {
                 var amount = wl < 9 ? actualWordlengths[wl] : actualWordlengths.Where(k => k.Key >= 9).Sum(k => k.Value);
+                Console.Write(amount + ",");
                 histogramTotal += Math.Pow(amount * (100d / totalWords) - (wl < 9 ? wordLengthHistogram[wl] : 4), 2) / 8d;
                 totalTest += Math.Abs(amount * (100d / totalWords) - (wl < 9 ? wordLengthHistogram[wl] : 4)) / 8d;
             }
-            Console.WriteLine("Test wl: " + totalTest);
+            Console.WriteLine();
 
             return new Dictionary<string, double>()
             {

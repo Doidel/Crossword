@@ -152,6 +152,7 @@ namespace Crossword
                         {
                             for (int len = 1; len <= minWordLength; len++)
                                 m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= 1 - fields[y + 1, x + len - 1], "MinWordLength3" + y + "_" + x + "_downRight" + len);
+                            if (x > 0) m.AddConstr(fields[y, x] + specialQuestionType[y, x, 0] - 1 <= fields[y + 1, x - 1], "QuestionBeforeSQ" + y + "_" + x + "_downRight");
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -163,6 +164,7 @@ namespace Crossword
                         {
                             for (int len = 1; len <= minWordLength; len++)
                                 m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= 1 - fields[y + len - 1, x - 1], "MinWordLength3" + y + "_" + x + "_leftDown" + len);
+                            if (y > 0) m.AddConstr(fields[y, x] + specialQuestionType[y, x, 1] - 1 <= fields[y - 1, x - 1], "QuestionBeforeSQ" + y + "_" + x + "_leftDown");
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -174,6 +176,7 @@ namespace Crossword
                         {
                             for (int len = 1; len <= minWordLength; len++)
                                 m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= 1 - fields[y + len - 1, x + 1], "MinWordLength3" + y + "_" + x + "_rightDown" + len);
+                            if (y > 0) m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= fields[y - 1, x + 1], "QuestionBeforeSQ" + y + "_" + x + "_rightDown");
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -185,6 +188,7 @@ namespace Crossword
                         {
                             for (int len = 1; len <= minWordLength; len++)
                                 m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= 1 - fields[y - 1, x + len - 1], "MinWordLength3" + y + "_" + x + "_upRight" + len);
+                            if (x > 0) m.AddConstr(fields[y, x] + specialQuestionType[y, x, 3] - 1 <= fields[y - 1, x - 1], "QuestionBeforeSQ" + y + "_" + x + "_upRight");
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -460,19 +464,30 @@ namespace Crossword
                         // true if field-1 is question or start AND field + wl (after word) is question or end
                         var hasLength = m.AddVar(0, 1, 0, GRB.BINARY, "hasLenVert" + wl + "__" + y + "_" + x);
                         var sum = fields.SumRange(y, x, y + wl - 1, x);
+                        // no questions inbetween
                         for (int i = 0; i < wl; i++)
                             m.AddConstr(hasLength <= 1 - fields[y + i, x]);
+                        // question at end
                         if (y + wl < sizeY && !crossword.HasBlock(y + wl, x))
                         {
                             sum += (1 - fields[y + wl, x]);
                             m.AddConstr(hasLength <= fields[y + wl, x]);
                         }
+                        // question at start
                         if (y - 1 >= 0 && !crossword.HasBlock(y - 1, x))
                         {
-                            sum += (1 - fields[y - 1, x]) + (1 - questionType[y - 1, x]);
+                            sum += (1 - fields[y - 1, x]);
                             m.AddConstr(hasLength <= fields[y - 1, x]);
-                            m.AddConstr(hasLength <= questionType[y - 1, x]);
                         }
+
+                        // counts if a letter is attached to a horizontal question
+                        var qsum = new GRBLinExpr();
+                        if ((object)partOfAWord[y, x, 1] != null) qsum += partOfAWord[y, x, 1];
+                        if ((object)partOfAWord[y, x, 3] != null) qsum += partOfAWord[y, x, 3];
+                        if ((object)partOfAWord[y, x, 4] != null) qsum += partOfAWord[y, x, 4];
+                        sum += 1 - qsum;
+                        m.AddConstr(hasLength <= qsum);
+
                         m.AddConstr(hasLength >= 1 - sum);
                         total += hasLength;
                     }
@@ -485,19 +500,30 @@ namespace Crossword
                             continue;
                         var hasLength = m.AddVar(0, 1, 0, GRB.BINARY, "hasLenHoriz" + wl + "__" + y + "_" + x);
                         var sum = fields.SumRange(y, x, y, x + wl - 1);
+                        // no questions inbetween
                         for (int i = 0; i < wl; i++)
                             m.AddConstr(hasLength <= 1 - fields[y, x + i]);
+                        // question at end
                         if (x + wl < sizeX && !crossword.HasBlock(y, x + wl))
                         {
                             sum += (1 - fields[y, x + wl]);
                             m.AddConstr(hasLength <= fields[y, x + wl]);
                         }
+                        // question at start
                         if (x - 1 >= 0 && !crossword.HasBlock(y, x - 1))
                         {
-                            sum += (1 - fields[y, x - 1]) + questionType[y, x - 1];
+                            sum += (1 - fields[y, x - 1]);
                             m.AddConstr(hasLength <= fields[y, x - 1]);
-                            m.AddConstr(hasLength <= 1 - questionType[y, x - 1]);
                         }
+
+                        // counts if a letter is attached to a horizontal question
+                        var qsum = new GRBLinExpr();
+                        if ((object)partOfAWord[y, x, 0] != null) qsum += partOfAWord[y, x, 0];
+                        if ((object)partOfAWord[y, x, 2] != null) qsum += partOfAWord[y, x, 2];
+                        if ((object)partOfAWord[y, x, 5] != null) qsum += partOfAWord[y, x, 5];
+                        sum += 1 - qsum;
+                        m.AddConstr(hasLength <= qsum);
+
                         m.AddConstr(hasLength >= 1 - sum);
                         total += hasLength;
                     }
@@ -512,8 +538,7 @@ namespace Crossword
             foreach (var wl in wlTotals.Keys)
             {
                 var input = wordCounts[wl - 2];
-                m.AddConstr(input >= wlTotals[wl]);
-                m.AddConstr(input <= wlTotals[wl]);
+                m.AddConstr(input == wlTotals[wl]);
                 var absRes = m.AddVar(0, 100, 0, GRB.CONTINUOUS, "absRes");
                 Console.WriteLine(wl == 9 ? 4 : wordLengthHistogram[wl]);
                 var percentageDiff = input * (100d / amountQuestions) - (wl == 9 ? 4 : wordLengthHistogram[wl]);
@@ -557,7 +582,7 @@ namespace Crossword
 
             //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
             // clusterPenalty * 100
-            m.SetObjective(wlPenalty + deadFieldPenalty + clusterPenalty, GRB.MINIMIZE);
+            m.SetObjective(wlPenalty + clusterPenalty + deadFieldPenalty , GRB.MINIMIZE);
 
             m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType, specialQuestionType, true, wordCounts));
 
