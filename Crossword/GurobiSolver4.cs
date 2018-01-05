@@ -469,8 +469,9 @@ namespace Crossword
                         }
                         if (y - 1 >= 0 && !crossword.HasBlock(y - 1, x))
                         {
-                            sum += (1 - fields[y - 1, x]);
+                            sum += (1 - fields[y - 1, x]) + (1 - questionType[y - 1, x]);
                             m.AddConstr(hasLength <= fields[y - 1, x]);
+                            m.AddConstr(hasLength <= questionType[y - 1, x]);
                         }
                         m.AddConstr(hasLength >= 1 - sum);
                         total += hasLength;
@@ -493,8 +494,9 @@ namespace Crossword
                         }
                         if (x - 1 >= 0 && !crossword.HasBlock(y, x - 1))
                         {
-                            sum += (1 - fields[y, x - 1]);
+                            sum += (1 - fields[y, x - 1]) + questionType[y, x - 1];
                             m.AddConstr(hasLength <= fields[y, x - 1]);
+                            m.AddConstr(hasLength <= 1 - questionType[y, x - 1]);
                         }
                         m.AddConstr(hasLength >= 1 - sum);
                         total += hasLength;
