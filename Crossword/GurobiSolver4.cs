@@ -23,10 +23,16 @@ namespace Crossword
                 { 6, 18 },
                 { 7, 12 },
                 { 8, 4 },
-                { 9, 4 },
+                { 9, 1 },
+                { 10, 1 },
+                { 11, 1 },
+                { 12, 1 },
+                { 13, 0 },
+                { 14, 0 },
+                { 15, 0 },
             };
 
-            const int maxWordLength = 9;
+            const int maxWordLength = 15;
             const int minWordLength = 2;
 
             int sizeY = crossword.Grid.GetLength(0);
@@ -45,6 +51,8 @@ namespace Crossword
 
             GRBEnv env = new GRBEnv();
             GRBModel m = new GRBModel(env);
+
+            m.GetEnv().Method = 0;
 
             // 0 = letter, 1 = question
             GRBVar[,] fields = new GRBVar[sizeY, sizeX];
@@ -165,7 +173,7 @@ namespace Crossword
                         if (y + minWordLength - 1 < sizeY && x + 1 < sizeX && !crossword.HasBlock(y, x + 1, y + minWordLength - 1, x + 1))
                         {
                             for (int len = 1; len <= minWordLength; len++)
-                                m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= 1 - fields[y + len - 1, x + 1], "MinWordLength3" + y + "_" + x + "_rightDown"+len);
+                                m.AddConstr(fields[y, x] + specialQuestionType[y, x, 2] - 1 <= 1 - fields[y + len - 1, x + 1], "MinWordLength3" + y + "_" + x + "_rightDown" + len);
                             atLeastOneSpecialAllowed = true;
                         }
                         else
@@ -377,8 +385,8 @@ namespace Crossword
             // Objective:
             // questions should be around ~22% (allFieldsSum ~= amountQuestions)
             int tolerance = (int)(amountQuestions * 0.1);
-            m.AddConstr(allFieldsSum - amountQuestions >= -tolerance, "amountOfQuestionsTolerance_1");
-            m.AddConstr(allFieldsSum - amountQuestions <= tolerance, "amountOfQuestionsTolerance_2");
+            m.AddConstr(allFieldsSum >= amountQuestions - tolerance, "amountOfQuestionsTolerance_1");
+            m.AddConstr(allFieldsSum <= amountQuestions + tolerance, "amountOfQuestionsTolerance_2");
 
             // uncrossed
             var uncrossedLetters = new GRBVar[sizeY, sizeX];
@@ -436,26 +444,82 @@ namespace Crossword
             }
 
 
-            // as many partOfAWord == 2 as possible
-            /*var manyCrossedWords = new GRBLinExpr();
-            for (int y = 0; y < sizeY; y++)
-                for (int x = 0; x < sizeX; x++)
-                    manyCrossedWords += partOfAWord[y, x];*/
 
             // ideal histogram comparison
             //var wordHistogramDifferences = new GRBLinExpr();
+            var wlTotals = new Dictionary<int, GRBLinExpr>();
             foreach (var wl in wordLengthHistogram.Keys)
             {
-                /*var varDiffInput = m.AddVar(-sizeX * sizeY / 3, sizeX * sizeY / 3, 0, GRB.INTEGER, "varDiffInput" + wl);
-                m.AddConstr(varDiffInput == (wordLengthHistogram[wl] - lengths[wl]));
-                var varDiffRes = m.AddVar(0, sizeX * sizeY / 3, 0, GRB.INTEGER, "varDiff" + wl);
-                m.AddGenConstrAbs(varDiffRes, varDiffInput, "diffGenConstr" + wl);
-                wordHistogramDifferences += varDiffRes;*/
-
-                int histogramTolerance = Math.Max(1, (int)(wordLengthHistogram[wl] * 0.2 * wordLengthRatio));
-                //m.AddConstr(wordLengthHistogram[wl] - lengths[wl] >= -histogramTolerance);
-                //m.AddConstr(wordLengthHistogram[wl] - lengths[wl] <= histogramTolerance);
+                var total = new GRBLinExpr();
+                for (int y = 0; y + wl - 1 < sizeY; y++)
+                {
+                    for (int x = 0; x < sizeX; x++)
+                    {
+                        if (crossword.HasBlock(y, x, y + wl - 1, x))
+                            continue;
+                        // true if field-1 is question or start AND field + wl (after word) is question or end
+                        var hasLength = m.AddVar(0, 1, 0, GRB.BINARY, "hasLenVert" + wl + "__" + y + "_" + x);
+                        var sum = fields.SumRange(y, x, y + wl - 1, x);
+                        for (int i = 0; i < wl; i++)
+                            m.AddConstr(hasLength <= 1 - fields[y + i, x]);
+                        if (y + wl < sizeY && !crossword.HasBlock(y + wl, x))
+                        {
+                            sum += (1 - fields[y + wl, x]);
+                            m.AddConstr(hasLength <= fields[y + wl, x]);
+                        }
+                        if (y - 1 >= 0 && !crossword.HasBlock(y - 1, x))
+                        {
+                            sum += (1 - fields[y - 1, x]);
+                            m.AddConstr(hasLength <= fields[y - 1, x]);
+                        }
+                        m.AddConstr(hasLength >= 1 - sum);
+                        total += hasLength;
+                    }
+                }
+                for (int y = 0; y < sizeY; y++)
+                {
+                    for (int x = 0; x + wl - 1 < sizeX; x++)
+                    {
+                        if (crossword.HasBlock(y, x, y, x + wl - 1))
+                            continue;
+                        var hasLength = m.AddVar(0, 1, 0, GRB.BINARY, "hasLenHoriz" + wl + "__" + y + "_" + x);
+                        var sum = fields.SumRange(y, x, y, x + wl - 1);
+                        for (int i = 0; i < wl; i++)
+                            m.AddConstr(hasLength <= 1 - fields[y, x + i]);
+                        if (x + wl < sizeX && !crossword.HasBlock(y, x + wl))
+                        {
+                            sum += (1 - fields[y, x + wl]);
+                            m.AddConstr(hasLength <= fields[y, x + wl]);
+                        }
+                        if (x - 1 >= 0 && !crossword.HasBlock(y, x - 1))
+                        {
+                            sum += (1 - fields[y, x - 1]);
+                            m.AddConstr(hasLength <= fields[y, x - 1]);
+                        }
+                        m.AddConstr(hasLength >= 1 - sum);
+                        total += hasLength;
+                    }
+                }
+                if (wl <= 9)
+                    wlTotals.Add(wl, total);
+                else
+                    wlTotals[9] += total;
             }
+            var wlPenalty = new GRBLinExpr();
+            var wordCounts = m.AddVars(8, 0, amountQuestions * 2, GRB.INTEGER, "amount");
+            foreach (var wl in wlTotals.Keys)
+            {
+                var input = wordCounts[wl - 2];
+                m.AddConstr(input >= wlTotals[wl]);
+                m.AddConstr(input <= wlTotals[wl]);
+                var absRes = m.AddVar(0, 100, 0, GRB.CONTINUOUS, "absRes");
+                Console.WriteLine(wl == 9 ? 4 : wordLengthHistogram[wl]);
+                var percentageDiff = input * (100d / amountQuestions) - (wl == 9 ? 4 : wordLengthHistogram[wl]);
+                m.AddConstr(percentageDiff <= absRes, "absPos");
+                m.AddConstr(-percentageDiff <= absRes, "absNeg");
+                wlPenalty += absRes;
+            }
+            wlPenalty *= (1d / 8);
 
             // question field clusters
             // in a field of 2x2, minimize the nr of fields where there are 2-4 questions resp. maximize 0-1 questions
@@ -491,10 +555,19 @@ namespace Crossword
 
             //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
             // clusterPenalty * 100
-            m.SetObjective(deadFieldPenalty + clusterPenalty, GRB.MINIMIZE);
+            m.SetObjective(wlPenalty + deadFieldPenalty + clusterPenalty, GRB.MINIMIZE);
+
+            m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType, specialQuestionType, true, wordCounts));
+
+            m.Optimize();
+            m.ComputeIIS();
+            m.Write("model.ilp");
+
+            m.Dispose();
+            env.Dispose();
 
             // Insert previous solution
-            /*var cwdCheck = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\15x15_1.cwg");
+            /*var cwdCheck = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\15x15_2.cwg");
             cwdCheck.Draw();
             for (int y = 0; y < cwdCheck.Grid.GetLength(0); y++)
             {
@@ -539,15 +612,6 @@ namespace Crossword
                     }
                 }
             }*/
-
-            m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType, specialQuestionType));
-
-            m.Optimize();
-            //m.ComputeIIS();
-            //m.Write("model.ilp");
-
-            m.Dispose();
-            env.Dispose();
         }
 
         private GRBLinExpr AttachedToSpecialQuestion(int y, int x, int type, Crossword crossword, GRBModel m, int sizeX, int sizeY, int maxWordLength, GRBVar[,] fields, GRBLinExpr[,] specialQuestionUsed, GRBVar[,,] specialQuestionType)
@@ -574,9 +638,8 @@ namespace Crossword
                 if ((object)specialQuestionUsed[qpos.y, qpos.x] == null) continue;
 
                 var atsp = m.AddVar(0, 1, 0, GRB.BINARY, "attachedToSpecialQuestion" + type + "len" + len + "_" + y + "_" + x);
-                var isSpecialQuestion = fields[qpos.y, qpos.x] + specialQuestionType[qpos.y, qpos.x, type];
                 var questionsInbetween = (type == 0 || type == 3) ? fields.SumRange(y, x - len, y, x) : fields.SumRange(y - len, x, y, x);
-                m.AddConstr(atsp >= isSpecialQuestion - 1 - questionsInbetween, "attachedToSpecialQuestion_len" + len + "_" + y + "_" + x);
+                m.AddConstr(atsp >= fields[qpos.y, qpos.x] + specialQuestionType[qpos.y, qpos.x, type] - 1 - questionsInbetween, "attachedToSpecialQuestion_len" + len + "_" + y + "_" + x);
                 if (type == 0 || type == 3)
                     for (int xi = x - len; xi <= x; xi++) m.AddConstr(atsp <= 1 - fields[y, xi], "notAttachedToSpecialQuestion1_len" + len + "_" + y + "_" + x);
                 else

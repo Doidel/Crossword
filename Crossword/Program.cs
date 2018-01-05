@@ -18,6 +18,8 @@ namespace Crossword
 
             /*var cwd = new Crossword(_base + @"results\island_1.cwg");
             new WordsSolver(cwd);*/
+
+            var x = Console.ReadKey();
         }
     }
 }

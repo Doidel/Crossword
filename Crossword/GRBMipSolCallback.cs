@@ -14,18 +14,20 @@ namespace Crossword
         private GRBVar[,] fields;
         private GRBVar[,] questionType;
         private GRBVar[,,] specialQuestionType;
+        private GRBVar[] wordCounts;
 
         private bool saveBest;
         public static Crossword[] Best = new Crossword[3];
         public static double[] BestScores = new double[3];
 
-        public GRBMipSolCallback(Crossword inputCrossword, GRBVar[,] fields, GRBVar[,] questionType, GRBVar[,,] specialQuestionType, bool saveBest = true)
+        public GRBMipSolCallback(Crossword inputCrossword, GRBVar[,] fields, GRBVar[,] questionType, GRBVar[,,] specialQuestionType, bool saveBest = true, GRBVar[] wordCounts = null)
         {
             this.inputCw = inputCrossword;
             this.fields = fields;
             this.questionType = questionType;
             this.saveBest = saveBest;
             this.specialQuestionType = specialQuestionType;
+            this.wordCounts = wordCounts;
         }
 
         protected override void Callback()
@@ -42,7 +44,7 @@ namespace Crossword
                 {
                     for (int x = 0; x < width; x++)
                     {
-                        if (!inputCw.HasBlock(y,x))
+                        if (!inputCw.HasBlock(y, x))
                         {
                             var letterOrQuestion = GetSolution(fields[y, x]) > 0.5 ? 1 : 0;
                             if (letterOrQuestion == 1)
@@ -89,7 +91,8 @@ namespace Crossword
                             {
                                 res[y, x] = new Empty();
                             }
-                        } else
+                        }
+                        else
                         {
                             res[y, x] = new Blocked();
                         }
@@ -99,8 +102,26 @@ namespace Crossword
                 Crossword cw = new Crossword(res);
                 cw.Draw();
 
-                // Add lazy constraint to cut off current solution
-                //AddLazy()
+                if (wordCounts != null)
+                {
+                    var counts = wordCounts.Select(wc => GetSolution(wc)).ToArray();
+                    var total = counts.Sum();
+                    var hist = new Dictionary<int, int>() {
+                        { 2, 0 },
+                        { 3, 18 },
+                        { 4, 24 },
+                        { 5, 20 },
+                        { 6, 18 },
+                        { 7, 12 },
+                        { 8, 4 },
+                        { 9, 4 }
+                    };
+                    var diffs = counts.Select((c, i) => Math.Round(Math.Abs(c / total * 100 - hist[i + 2]))).ToArray();
+                    Console.WriteLine("WordCounts Model: " + string.Join(",", counts));
+                    Console.WriteLine("In %: " + string.Join(",", counts.Select(c => Math.Round(c / total * 100)).ToArray()));
+                    Console.WriteLine("Diff: " + string.Join(",", diffs));
+                    Console.WriteLine("Diff Total: " + diffs.Average());
+                }
 
                 if (saveBest)
                 {
@@ -117,7 +138,7 @@ namespace Crossword
                             var score_temp = BestScores[i];
                             Best[i] = cw;
                             BestScores[i] = newScoreTotal;
-                            cw.Save("_" + (i+1));
+                            cw.Save("_" + (i + 1));
 
                             cw = cw_temp;
                             newScoreTotal = score_temp;

@@ -101,10 +101,16 @@ namespace Crossword
                 { 6, 18 },
                 { 7, 12 },
                 { 8, 4 },
-                { 9, 4 },
+                { 9, 1 },
+                { 10, 1 },
+                { 11, 1 },
+                { 12, 1 },
+                { 13, 0 },
+                { 14, 0 },
+                { 15, 0 },
             };
 
-            const int maxWordLength = 9;
+            const int maxWordLength = 15;
 
             int sizeY = Grid.GetLength(0);
             int sizeX = Grid.GetLength(1);
@@ -285,8 +291,15 @@ namespace Crossword
             cTotal /= clusterID - 1;
 
             double histogramTotal = 0;
-            foreach (var k in wordLengthHistogram.Keys)
-                histogramTotal += Math.Pow(actualWordlengths[k] - wordLengthHistogram[k], 2) / 8d;
+            var totalWords = actualWordlengths.Values.Sum();
+            double totalTest = 0;
+            for (int wl = 2; wl <= 9; wl++)
+            {
+                var amount = wl < 9 ? actualWordlengths[wl] : actualWordlengths.Where(k => k.Key >= 9).Sum(k => k.Value);
+                histogramTotal += Math.Pow(amount * (100d / totalWords) - (wl < 9 ? wordLengthHistogram[wl] : 4), 2) / 8d;
+                totalTest += Math.Abs(amount * (100d / totalWords) - (wl < 9 ? wordLengthHistogram[wl] : 4)) / 8d;
+            }
+            Console.WriteLine("Test wl: " + totalTest);
 
             return new Dictionary<string, double>()
             {
