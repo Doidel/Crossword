@@ -388,42 +388,47 @@ namespace Crossword
 
             // Objective:
             // questions should be around ~22% (allFieldsSum ~= amountQuestions)
-            int tolerance = (int)(amountQuestions * 0.1);
+            /*int tolerance = (int)(amountQuestions * 0.1);
             m.AddConstr(allFieldsSum >= amountQuestions - tolerance, "amountOfQuestionsTolerance_1");
-            m.AddConstr(allFieldsSum <= amountQuestions + tolerance, "amountOfQuestionsTolerance_2");
+            m.AddConstr(allFieldsSum <= amountQuestions + tolerance, "amountOfQuestionsTolerance_2");*/
+            m.AddConstr(allFieldsSum == amountQuestions);
 
             // uncrossed
-            var uncrossedLetters = new GRBVar[sizeY, sizeX];
-            var uncrossedLettersPenalty = new GRBLinExpr();
+            var partOfWordTotals = new GRBLinExpr[sizeY, sizeX];
             for (int y = 0; y < sizeY; y++)
             {
                 for (int x = 0; x < sizeX; x++)
                 {
                     if (!crossword.HasBlock(y, x)) //(x >= 1 || y >= 1) && 
                     {
-                        uncrossedLetters[y, x] = m.AddVar(0, 1, 0, GRB.BINARY, "isUncrossedLetter" + y + "_" + x);
                         var partOfWordTotal = new GRBLinExpr();
                         for (int t = 0; t < 6; t++)
                             if ((object)partOfAWord[y, x, t] != null) partOfWordTotal += partOfAWord[y, x, t];
-                        // if total < 2 && is a letter ==> uncrossed
-                        m.AddConstr(uncrossedLetters[y, x] <= 1 - fields[y, x], "uncrossedConstr1" + y + "_" + x); // if it's a question it can't be an uncrossed letter
-                        m.AddConstr(uncrossedLetters[y, x] >= 1 - partOfWordTotal * 0.5 - fields[y, x], "uncrossedConstr2" + y + "_" + x);
-                        m.AddConstr(uncrossedLetters[y, x] <= 1 - (partOfWordTotal - 1) * (1d / 5), "uncrossedConstr3" + y + "_" + x);
+                        partOfWordTotals[y, x] = partOfWordTotal;
+                    }
+                }
+            }
 
-                        /*m.AddConstr(uncrossedLetters[y, x] <= partOfWordTotal); // if 0 ==> 0 NECESSARY?
-                        m.AddConstr(uncrossedLetters[y, x] <= 2 - partOfAWord[y, x, 0] - partOfAWord[y, x, 1]); // if 2 ==> 0
-                        m.AddConstr(uncrossedLetters[y, x] <= 1 - fields[y, x]); // if it's a question it can't be a dead field
-
-                        m.AddConstr(uncrossedLetters[y, x] >= partOfAWord[y, x, 0] - partOfAWord[y, x, 1] - fields[y, x]); // horizontal XOR vertical
-                        m.AddConstr(uncrossedLetters[y, x] >= partOfAWord[y, x, 1] - partOfAWord[y, x, 0] - fields[y, x]);*/
-
-                        uncrossedLettersPenalty += uncrossedLetters[y, x];
+            for (int y = 0; y < sizeY - 1; y++)
+            {
+                for (int x = 0; x < sizeX - 1; x++)
+                {
+                    if (!crossword.HasBlock(y, x)) //(x >= 1 || y >= 1) && 
+                    {
+                        if (!crossword.HasBlock(y + 1, x))
+                        {
+                            m.AddConstr(partOfWordTotals[y, x] + partOfWordTotals[y + 1, x] >= (1 - fields[y, x] - fields[y + 1, x]) * 3, "noUncrossedFields" + y + "_" + x);
+                        }
+                        if (!crossword.HasBlock(y, x + 1))
+                        {
+                            m.AddConstr(partOfWordTotals[y, x] + partOfWordTotals[y, x + 1] >= (1 - fields[y, x] - fields[y, x + 1]) * 3, "noUncrossedFields" + y + "_" + x);
+                        }
                     }
                 }
             }
 
             // penalty for nearby uncrossed letters (dead fields)
-            var deadFieldPenalty = new GRBLinExpr();
+            /*var deadFieldPenalty = new GRBLinExpr();
             for (int y = 0; y < sizeY; y++)
             {
                 for (int x = 0; x < sizeX; x++)
@@ -445,7 +450,7 @@ namespace Crossword
                         deadFieldPenalty += isDeadArea;
                     }
                 }
-            }
+            }*/
 
 
 
@@ -550,8 +555,8 @@ namespace Crossword
 
             // question field clusters
             // in a field of 2x2, minimize the nr of fields where there are 2-4 questions resp. maximize 0-1 questions
-            var clusterPenalty = new GRBLinExpr();
-            int area = 2;
+            //var clusterPenalty = new GRBLinExpr();
+            int area = 3;
             for (int y = 0; y < sizeY - (area - 1); y++)
             {
                 for (int x = 0; x < sizeX - (area - 1); x++)
@@ -562,18 +567,19 @@ namespace Crossword
                     {
                         for (int j = 0; j < area; j++)
                         {
-                            if (crossword.HasBlock(y + i, x + j)) continue;
+                            if (crossword.HasBlock(y + i, x + j) || (i == 1 && j == 1)) continue;
                             clusterTotal += fields[y + i, x + j];
                             ct++;
                         }
                     }
-                    if (ct >= 3)
+                    if (ct >= 2 && !crossword.HasBlock(y + 1, x + 1))
                     {
-                        var varClusterTotalPenalty = m.AddVar(0, 1, 0, GRB.BINARY, "varClusterTotalPenalty" + y + "_" + x);
+                        //var varClusterTotalPenalty = m.AddVar(0, 1, 0, GRB.BINARY, "varClusterTotalPenalty" + y + "_" + x);
                         // 0-1 = good, 2-4 = bad
-                        m.AddConstr(varClusterTotalPenalty <= clusterTotal * 0.5, "clusterPenaltyConstr1_" + y + "_" + x);
+                        m.AddConstr(clusterTotal - 1 <= (1 - fields[y + 1, x + 1]) * 8, "cluster" + y + "_" + x);
+                        /*m.AddConstr(varClusterTotalPenalty <= clusterTotal * 0.5, "clusterPenaltyConstr1_" + y + "_" + x);
                         m.AddConstr(varClusterTotalPenalty >= (clusterTotal - 1) * (1d / 3), "clusterPenaltyConstr2_" + y + "_" + x);
-                        clusterPenalty += varClusterTotalPenalty;
+                        clusterPenalty += varClusterTotalPenalty;*/
                     }
                 }
             }
@@ -582,19 +588,12 @@ namespace Crossword
 
             //amountOfQuestionsRating * (100d / sizeX / sizeY) + manyCrossedWords +  + wordHistogramDifferences
             // clusterPenalty * 100
-            m.SetObjective(wlPenalty + clusterPenalty + deadFieldPenalty , GRB.MINIMIZE);
+            m.SetObjective(wlPenalty, GRB.MINIMIZE);
 
             m.SetCallback(new GRBMipSolCallback(crossword, fields, questionType, specialQuestionType, true, wordCounts));
 
-            m.Optimize();
-            m.ComputeIIS();
-            m.Write("model.ilp");
-
-            m.Dispose();
-            env.Dispose();
-
             // Insert previous solution
-            /*var cwdCheck = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\15x15_2.cwg");
+            /*var cwdCheck = new Crossword(@"C:\Users\Roman Bolzern\Documents\GitHub\Crossword\docs\15x15_1_noDoubles.cwg");
             cwdCheck.Draw();
             for (int y = 0; y < cwdCheck.Grid.GetLength(0); y++)
             {
@@ -608,7 +607,7 @@ namespace Crossword
                         {
                             m.AddConstr(questionType[y, x] == 0);
                             if ((object)specialQuestionType[y, x, 0] != null)
-                                m.AddConstr(specialQuestionType[y, x, 0]+ specialQuestionType[y, x, 1] + specialQuestionType[y, x, 2] + specialQuestionType[y, x, 3] == 0);
+                                m.AddConstr(specialQuestionType[y, x, 0] + specialQuestionType[y, x, 1] + specialQuestionType[y, x, 2] + specialQuestionType[y, x, 3] == 0);
                         }
                         else if (q.Arrow == Question.ArrowType.Down)
                         {
@@ -639,7 +638,17 @@ namespace Crossword
                     }
                 }
             }*/
+
+
+            m.Optimize();
+            m.ComputeIIS();
+            m.Write("model.ilp");
+
+            m.Dispose();
+            env.Dispose();
         }
+
+
 
         private GRBLinExpr AttachedToSpecialQuestion(int y, int x, int type, Crossword crossword, GRBModel m, int sizeX, int sizeY, int maxWordLength, GRBVar[,] fields, GRBLinExpr[,] specialQuestionUsed, GRBVar[,,] specialQuestionType)
         {
