@@ -58,6 +58,7 @@
     <Compile Include="GurobiSolver3.cs" />
     <Compile Include="GurobiSolver2.cs" />
     <Compile Include="GurobiSolver.cs" />
+    <Compile Include="mae_sdo.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SchnittpunktProgram.cs" />
