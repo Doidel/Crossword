@@ -10,9 +10,12 @@ namespace Crossword
 {
     public class mae_sdo
     {
+        /// <summary>
+        /// I used this Gurobi model to calculate the fixed point baseline.
+        /// </summary>
         public mae_sdo()
         {
-            string path = @"C:\Users\Roman Bolzern\Desktop\D4\training.csv";
+            string path = @"C:\Users\Roman Bolzern\Desktop\D4\neu\meta_data_training.csv";
 
             var lines = File.ReadLines(path).ToArray();
 
@@ -27,7 +30,7 @@ namespace Crossword
 
             for (int i = 1; i < lines.Length; i++)
             {
-                var diff = double.Parse(lines[i].Split(';')[6]) * scale - y;
+                var diff = double.Parse(lines[i].Split(',')[3]) * scale - y;
                 var diffinput = m.AddVar(-1e-2 * scale, 1e-2 * scale, 0d, GRB.CONTINUOUS, "diffinput");
                 m.AddConstr(diffinput == diff);
                 var diffres = m.AddVar(0, 1e-2 * scale, 0d, GRB.CONTINUOUS, "diffres");
